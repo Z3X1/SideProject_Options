@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GEX Oracle — BTC Options Dashboard</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;400;600;700&family=Noto+Sans+TC:wght@300;400;700&display=swap');
+
+  :root {
+    --bg:        #0a0c0f;
+    --bg2:       #0f1318;
+    --bg3:       #141920;
+    --border:    #1e2832;
+    --accent:    #00d4ff;
+    --accent2:   #ff6b35;
+    --green:     #00ff88;
+    --red:       #ff3355;
+    --yellow:    #ffd700;
+    --text:      #c8d6e5;
+    --text-dim:  #4a5568;
+    --mono:      'Share Tech Mono', monospace;
+    --sans:      'Rajdhani', 'Noto Sans TC', sans-serif;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .logo {
+    font-family: var(--mono);
+    font-size: 18px;
+    color: var(--accent);
+    letter-spacing: 2px;
+  }
+  .logo span { color: var(--accent2); }
+  .header-meta {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    text-align: right;
+    line-height: 1.6;
+  }
+  .regime-badge {
+    padding: 4px 12px;
+    border-radius: 2px;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 1px;
+    font-weight: 700;
+  }
+  .regime-pos { background: rgba(0,255,136,0.1); color: var(--green); border: 1px solid var(--green); }
+  .regime-neg { background: rgba(255,51,85,0.1); color: var(--red); border: 1px solid var(--red); }
+
+  /* ── TABS ── */
+  .tabs {
+    display: flex;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab {
+    padding: 10px 20px;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+    transition: all 0.2s;
+    user-select: none;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* ── MAIN ── */
+  .main { padding: 20px 24px; max-width: 1400px; margin: 0 auto; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* ── GRID ── */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; }
+  .col-span-2 { grid-column: span 2; }
+
+  /* ── CARD ── */
+  .card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 16px;
+  }
+  .card-title {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--text-dim);
+    margin-bottom: 12px;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card-title::before {
+    content: '';
+    display: inline-block;
+    width: 3px;
+    height: 10px;
+    background: var(--accent);
+  }
+
+  /* ── STAT ── */
+  .stat-value {
+    font-family: var(--mono);
+    font-size: 28px;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1;
+  }
+  .stat-label {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 4px;
+    font-family: var(--mono);
+  }
+  .stat-delta {
+    font-family: var(--mono);
+    font-size: 12px;
+    margin-top: 6px;
+  }
+  .up { color: var(--green); }
+  .down { color: var(--red); }
+  .neutral { color: var(--yellow); }
+
+  /* ── GEX STRUCTURE ── */
+  .gex-bar-wrap {
+    margin: 8px 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--mono);
+    font-size: 11px;
+  }
+  .gex-label { width: 100px; color: var(--text-dim); }
+  .gex-bar-outer {
+    flex: 1;
+    height: 8px;
+    background: var(--bg3);
+    border-radius: 1px;
+    overflow: hidden;
+  }
+  .gex-bar-inner {
+    height: 100%;
+    border-radius: 1px;
+    transition: width 0.5s ease;
+  }
+  .gex-price { width: 80px; text-align: right; color: #fff; }
+
+  /* ── PROBABILITY ── */
+  .prob-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 8px 0;
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+  .prob-name { width: 140px; color: var(--text); }
+  .prob-bar-outer {
+    flex: 1;
+    height: 20px;
+    background: var(--bg3);
+    border-radius: 2px;
+    overflow: hidden;
+    position: relative;
+  }
+  .prob-bar-inner {
+    height: 100%;
+    border-radius: 2px;
+    display: flex;
+    align-items: center;
+    padding-left: 8px;
+    font-size: 11px;
+    font-weight: 700;
+    transition: width 0.8s ease;
+  }
+  .prob-pct { width: 40px; text-align: right; }
+
+  /* ── COLLISION ── */
+  .collision-round {
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    margin-bottom: 12px;
+    overflow: hidden;
+  }
+  .collision-header {
+    background: var(--bg3);
+    padding: 8px 14px;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    display: flex;
+    justify-content: space-between;
+  }
+  .bull-header { color: var(--green); }
+  .bear-header { color: var(--red); }
+  .oracle-header { color: var(--yellow); }
+  .collision-body {
+    padding: 10px 14px;
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--text);
+  }
+  .collision-body strong { color: #fff; }
+
+  /* ── RULE ── */
+  .rule-item {
+    border-left: 3px solid var(--border);
+    padding: 8px 12px;
+    margin-bottom: 10px;
+    transition: border-color 0.2s;
+  }
+  .rule-item:hover { border-left-color: var(--accent); }
+  .rule-num {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--accent);
+    letter-spacing: 1px;
+  }
+  .rule-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #fff;
+    margin: 2px 0;
+  }
+  .rule-desc {
+    font-size: 12px;
+    color: var(--text-dim);
+    line-height: 1.6;
+  }
+
+  /* ── TABLE ── */
+  table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 12px; }
+  th {
+    text-align: left;
+    padding: 8px 10px;
+    color: var(--text-dim);
+    font-size: 10px;
+    letter-spacing: 1px;
+    border-bottom: 1px solid var(--border);
+    font-weight: 400;
+  }
+  td { padding: 8px 10px; border-bottom: 1px solid rgba(30,40,50,0.5); color: var(--text); }
+  tr:hover td { background: var(--bg3); }
+  .verified { color: var(--green); }
+  .tag {
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 2px;
+    font-size: 10px;
+    font-weight: 700;
+  }
+  .tag-pos { background: rgba(0,255,136,0.1); color: var(--green); }
+  .tag-neg { background: rgba(255,51,85,0.1); color: var(--red); }
+  .tag-neutral { background: rgba(255,215,0,0.1); color: var(--yellow); }
+
+  /* ── EQUATION ── */
+  .equation {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    padding: 14px 18px;
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 2;
+    border-radius: 2px;
+    margin: 12px 0;
+  }
+  .eq-highlight { color: var(--accent); }
+  .eq-value { color: var(--yellow); }
+
+  /* ── DIVIDER ── */
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 20px 0;
+  }
+  .section-title {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 3px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    margin-top: 24px;
+  }
+
+  /* ── TECH INDICATOR ── */
+  .indicator-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 7px 0;
+    border-bottom: 1px solid rgba(30,40,50,0.4);
+    font-size: 12px;
+  }
+  .indicator-name { color: var(--text-dim); font-family: var(--mono); }
+  .indicator-value { color: #fff; font-family: var(--mono); font-weight: 700; }
+  .indicator-signal { font-size: 10px; padding: 2px 6px; border-radius: 2px; }
+
+  /* ── SCENARIO BOX ── */
+  .scenario-box {
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 14px;
+    margin-bottom: 12px;
+  }
+  .scenario-box.primary { border-left: 3px solid var(--green); }
+  .scenario-box.secondary { border-left: 3px solid var(--accent2); }
+  .scenario-box.tertiary { border-left: 3px solid var(--red); }
+  .scenario-name { font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 6px; }
+  .scenario-prob { font-family: var(--mono); font-size: 22px; font-weight: 700; }
+  .scenario-desc { font-size: 12px; color: var(--text-dim); margin-top: 6px; line-height: 1.6; }
+  .scenario-target { font-family: var(--mono); font-size: 12px; margin-top: 8px; }
+
+  /* ── GLOSSARY ── */
+  .glossary-section { margin-bottom: 24px; }
+  .glossary-title {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: var(--accent);
+    text-transform: uppercase;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 12px;
+  }
+  .glossary-item { padding: 10px 0; border-bottom: 1px solid rgba(30,40,50,0.3); }
+  .glossary-term { font-weight: 700; color: #fff; font-size: 13px; margin-bottom: 4px; }
+  .glossary-def { font-size: 12px; color: var(--text-dim); line-height: 1.7; }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 768px) {
+    .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+    .col-span-2 { grid-column: span 1; }
+    .main { padding: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div>
+    <div class="logo">GEX <span>ORACLE</span></div>
+    <div style="font-size:11px; color:var(--text-dim); font-family:var(--mono); margin-top:3px;">統一場論 v1.8 · S21</div>
+  </div>
+  <div style="display:flex; align-items:center; gap:16px;">
+    <div class="regime-badge regime-pos">POS REGIME</div>
+    <div class="header-meta">
+      <div>SPOT <span style="color:#fff; font-weight:700;">$68,350</span></div>
+      <div>DVOL <span style="color:var(--yellow);">52.35%</span> · 2026-03-27 16:20 UTC+8</div>
+    </div>
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <div class="tab active" onclick="showTab('overview')">概覽</div>
+  <div class="tab" onclick="showTab('gex')">GEX 結構</div>
+  <div class="tab" onclick="showTab('collision')">對抗碰撞</div>
+  <div class="tab" onclick="showTab('scenarios')">情境概率</div>
+  <div class="tab" onclick="showTab('technicals')">技術面</div>
+  <div class="tab" onclick="showTab('framework')">統一場論</div>
+  <div class="tab" onclick="showTab('history')">驗證記錄</div>
+  <div class="tab" onclick="showTab('glossary')">名詞解釋</div>
+</div>
+
+<!-- ════════════════════════════════════════
+     TAB 1: 概覽
+════════════════════════════════════════ -->
+<div class="main">
+<div id="tab-overview" class="panel active">
+
+  <!-- 關鍵指標 -->
+  <div class="grid-4" style="margin-bottom:16px;">
+    <div class="card">
+      <div class="card-title">現貨價格</div>
+      <div class="stat-value">$68,350</div>
+      <div class="stat-label">BTC/USDT · Binance</div>
+      <div class="stat-delta neutral">▲ Gamma Flip +$850</div>
+    </div>
+    <div class="card">
+      <div class="card-title">隱含波動率</div>
+      <div class="stat-value" style="color:var(--yellow);">52.35%</div>
+      <div class="stat-label">DVOL · Deribit</div>
+      <div class="stat-delta neutral">σ(28d) = $9,908</div>
+    </div>
+    <div class="card">
+      <div class="card-title">資金費率</div>
+      <div class="stat-value down">-0.669%</div>
+      <div class="stat-label">8h FR · 序列最深</div>
+      <div class="stat-delta down">空頭主導，信念堅定</div>
+    </div>
+    <div class="card">
+      <div class="card-title">多空比</div>
+      <div class="stat-value" style="color:var(--accent2);">2.287</div>
+      <div class="stat-label">L/S Ratio · Binance</div>
+      <div class="stat-delta down">空頭超配警戒線</div>
+    </div>
+  </div>
+
+  <div class="grid-4" style="margin-bottom:16px;">
+    <div class="card">
+      <div class="card-title">未平倉量</div>
+      <div class="stat-value">8.91萬</div>
+      <div class="stat-label">OI · 序列最高</div>
+    </div>
+    <div class="card">
+      <div class="card-title">PCR 24APR26</div>
+      <div class="stat-value" style="color:var(--accent);">1.398</div>
+      <div class="stat-label">Put/Call Ratio</div>
+    </div>
+    <div class="card">
+      <div class="card-title">PCR 3APR26</div>
+      <div class="stat-value" style="color:var(--red);">5.929</div>
+      <div class="stat-label">近端防禦極強</div>
+    </div>
+    <div class="card">
+      <div class="card-title">PCR 29MAY26</div>
+      <div class="stat-value up">0.555</div>
+      <div class="stat-label">遠端 Call 主導</div>
+    </div>
+  </div>
+
+  <!-- 統一場方程式 -->
+  <div class="card" style="margin-bottom:16px;">
+    <div class="card-title">統一場方程式</div>
+    <div class="equation">
+      P(結算在X) = <span class="eq-value">0.40</span>×<span class="eq-highlight">GBM</span>
+      + <span class="eq-value">0.10</span>×<span class="eq-highlight">GEX</span>
+      + <span class="eq-value">0.28</span>×<span class="eq-highlight">行為信號</span>
+      + <span class="eq-value">0.12</span>×<span class="eq-highlight">貝葉斯</span>
+      + <span class="eq-value">0.10</span>×<span class="eq-highlight">時間衰減</span>
+    </div>
+  </div>
+
+  <!-- 當前結構摘要 -->
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">GEX 關鍵水位</div>
+      <div class="gex-bar-wrap">
+        <span class="gex-label" style="color:var(--red);">Put Wall</span>
+        <div class="gex-bar-outer"><div class="gex-bar-inner" style="width:30%; background:var(--red);"></div></div>
+        <span class="gex-price">$57,000</span>
+      </div>
+      <div class="gex-bar-wrap">
+        <span class="gex-label" style="color:var(--yellow);">Gamma Flip</span>
+        <div class="gex-bar-outer"><div class="gex-bar-inner" style="width:60%; background:var(--yellow);"></div></div>
+        <span class="gex-price">$67,500</span>
+      </div>
+      <div class="gex-bar-wrap">
+        <span class="gex-label" style="color:var(--accent);">► SPOT</span>
+        <div class="gex-bar-outer"><div class="gex-bar-inner" style="width:63%; background:var(--accent);"></div></div>
+        <span class="gex-price">$68,350</span>
+      </div>
+      <div class="gex-bar-wrap">
+        <span class="gex-label" style="color:var(--green);">Gamma-MP</span>
+        <div class="gex-bar-outer"><div class="gex-bar-inner" style="width:76%; background:var(--green);"></div></div>
+        <span class="gex-price">$72,000</span>
+      </div>
+      <div class="gex-bar-wrap">
+        <span class="gex-label" style="color:var(--accent2);">Call Wall</span>
+        <div class="gex-bar-outer"><div class="gex-bar-inner" style="width:100%; background:var(--accent2);"></div></div>
+        <span class="gex-price">$78,000</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">情境概率（貝葉斯）</div>
+      <div class="prob-row">
+        <span class="prob-name">情境B（回歸）</span>
+        <div class="prob-bar-outer"><div class="prob-bar-inner" style="width:82%; background:var(--green);"></div></div>
+        <span class="prob-pct up">82%</span>
+      </div>
+      <div class="prob-row">
+        <span class="prob-name">情境A（強反彈）</span>
+        <div class="prob-bar-outer"><div class="prob-bar-inner" style="width:10%; background:var(--accent);"></div></div>
+        <span class="prob-pct" style="color:var(--accent)">10%</span>
+      </div>
+      <div class="prob-row">
+        <span class="prob-name">SS（深跌）</span>
+        <div class="prob-bar-outer"><div class="prob-bar-inner" style="width:35%; background:var(--red);"></div></div>
+        <span class="prob-pct down">35%</span>
+      </div>
+      <div style="margin-top:14px; font-size:11px; color:var(--text-dim); font-family:var(--mono);">
+        Layer1 + Layer2 合併（POS Regime）<br>
+        Gamma-MP $72,000 向上引力 0.37σ
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     TAB 2: GEX 結構
+════════════════════════════════════════ -->
+<div id="tab-gex" class="panel">
+  <div class="grid-2" style="margin-bottom:16px;">
+    <div class="card">
+      <div class="card-title">24APR26 主到期日</div>
+      <table>
+        <tr><th>指標</th><th>數值</th><th>狀態</th></tr>
+        <tr><td>Gamma Flip</td><td style="color:var(--yellow);">~$67,500</td><td><span class="tag tag-pos">SPOT 在上方</span></td></tr>
+        <tr><td>Gamma-MP</td><td style="color:var(--green);">$72,000</td><td><span class="tag tag-pos">引力 +$3,650</span></td></tr>
+        <tr><td>Call Wall</td><td style="color:var(--accent2);">$78,000</td><td><span class="tag tag-neutral">強阻力</span></td></tr>
+        <tr><td>Put Wall</td><td style="color:var(--red);">$57,000</td><td><span class="tag tag-neutral">遠端弱</span></td></tr>
+        <tr><td>PCR</td><td>1.398</td><td><span class="tag tag-neutral">輕微 Put 偏</span></td></tr>
+        <tr><td>σ(28d)</td><td>$9,908</td><td><span class="tag tag-neutral">±1σ 範圍</span></td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <div class="card-title">跨期 PCR 結構</div>
+      <table>
+        <tr><th>到期日</th><th>PCR</th><th>解讀</th></tr>
+        <tr><td>3APR26</td><td style="color:var(--red);">5.929</td><td style="color:var(--text-dim); font-size:11px;">近端防禦，尾部保護</td></tr>
+        <tr><td>24APR26</td><td style="color:var(--yellow);">1.398</td><td style="color:var(--text-dim); font-size:11px;">平衡偏多</td></tr>
+        <tr><td>29MAY26</td><td style="color:var(--green);">0.555</td><td style="color:var(--text-dim); font-size:11px;">遠端 Call 主導</td></tr>
+      </table>
+      <div style="margin-top:14px; padding:10px; background:var(--bg3); border-radius:3px; font-size:12px; color:var(--text-dim); line-height:1.7;">
+        <strong style="color:var(--accent);">機構完整對沖結構</strong><br>
+        近端防禦（PCR=5.929）+ 遠端進攻（PCR=0.555）<br>
+        → 機構在保護下行的同時佈局上漲
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">廣阻力帶分析（Layer2）</div>
+    <div class="grid-3">
+      <div>
+        <div class="indicator-row">
+          <span class="indicator-name">阻力帶下緣</span>
+          <span class="indicator-value" style="color:var(--red);">$69,321</span>
+        </div>
+        <div style="font-size:11px; color:var(--text-dim); padding:4px 0;">EMA10 4h</div>
+      </div>
+      <div>
+        <div class="indicator-row">
+          <span class="indicator-name">EMA200 4h</span>
+          <span class="indicator-value" style="color:var(--yellow);">$69,789</span>
+        </div>
+        <div style="font-size:11px; color:var(--text-dim); padding:4px 0;">密集帶核心</div>
+      </div>
+      <div>
+        <div class="indicator-row">
+          <span class="indicator-name">阻力帶上緣</span>
+          <span class="indicator-value" style="color:var(--red);">$70,547</span>
+        </div>
+        <div style="font-size:11px; color:var(--text-dim); padding:4px 0;">EMA30 2h</div>
+      </div>
+    </div>
+    <div style="margin-top:12px; padding:10px; background:var(--bg3); border-radius:3px; font-size:12px; color:var(--text-dim);">
+      廣阻力帶寬度：<strong style="color:#fff;">1,226 點</strong>（$69,321 ~ $70,547）· 密度極高，突破需強動能
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     TAB 3: 對抗碰撞
+════════════════════════════════════════ -->
+<div id="tab-collision" class="panel">
+  <div style="margin-bottom:16px; padding:12px; background:var(--bg2); border:1px solid var(--border); border-radius:4px; font-family:var(--mono); font-size:12px; color:var(--text-dim);">
+    全序列：<strong style="color:#fff;">59 輪碰撞</strong> · 統一場論 v1.0 → v1.8（10 個版本）· S21 新週期啟動
+  </div>
+
+  <div class="collision-round">
+    <div class="collision-header"><span class="bull-header">▲ H_BULL · 回合 1</span><span>POS Regime 引力論</span></div>
+    <div class="collision-body">
+      Spot $68,350 在 Gamma Flip $67,500 上方，造市商處於 <strong>POS Regime 穩定器模式</strong>。
+      Gamma-MP $72,000 提供 +$3,650（0.37σ）向上引力。機構 PCR 結構顯示近端防禦完備，遠端 Call 佈局積極，
+      貝葉斯情境B 82% 支持回歸 Gamma-MP 路徑。
+    </div>
+  </div>
+
+  <div class="collision-round">
+    <div class="collision-header"><span class="bear-header">▼ H_BEAR · 回合 1</span><span>FR 深負與技術惡化論</span></div>
+    <div class="collision-body">
+      FR -0.669% 為序列最深值，空頭每 8h 補倉強化下行壓力。4h MACD DIF=-447.31 加速惡化，
+      廣阻力帶 $69,321~$70,547（1,226點）在前方堵截，L/S=2.287 顯示空頭超配。
+      技術面三框架全面死叉，機械反彈動能不足。
+    </div>
+  </div>
+
+  <div class="collision-round">
+    <div class="collision-header"><span class="bull-header">▲ H_BULL · 回合 2</span><span>RSI 真實超賣反攻</span></div>
+    <div class="collision-body">
+      4h RSI6=<strong>25.48（真實超賣，效果×1.0）</strong>，持續時間超過一個蠟燭，方向一致。
+      1D RSI6=38.30 進入超賣邊緣。非機械滾動，符合 Rule#3 真實超賣認定，
+      歷史上此水位出現後 48~72h 有顯著反彈概率。
+    </div>
+  </div>
+
+  <div class="collision-round">
+    <div class="collision-header"><span class="bear-header">▼ H_BEAR · 回合 2</span><span>RSI 反彈有效性質疑</span></div>
+    <div class="collision-body">
+      RSI 超賣反彈需 FR 轉正配合，當前 FR -0.669% 未見穿越 0% 訊號。
+      廣阻力帶 1,226 點密度遠超反彈動能，MACD 加速惡化下 RSI 可長期超賣不反彈（2022年案例）。
+      缺乏硬性觸發條件，反彈論據不充分。
+    </div>
+  </div>
+
+  <div class="collision-round">
+    <div class="collision-header"><span class="oracle-header">◈ ORACLE 裁決 · S21</span><span>v1.8 更新</span></div>
+    <div class="collision-body">
+      <strong style="color:var(--yellow);">短期（T≤72h）：H_BEAR 優勢</strong> — FR 信念未轉，技術面無硬觸發，阻力帶完整。<br>
+      <strong style="color:var(--green);">中期（T=28d）：H_BULL 優勢</strong> — POS Regime + Gamma-MP 引力 + 機構完整對沖結構。<br><br>
+      <strong>新增 Rule#10</strong>：POS Regime 下 Layer1+Layer2 合併，NEG Regime 下嚴格分離。<br>
+      <strong>24APR26 預測中位</strong>：$72,000（Gamma-MP），±1σ = [$58,442, $82,258]
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     TAB 4: 情境概率
+════════════════════════════════════════ -->
+<div id="tab-scenarios" class="panel">
+  <div class="grid-3">
+    <div class="scenario-box primary">
+      <div class="scenario-name">情境B — 均值回歸</div>
+      <div class="scenario-prob up">82%</div>
+      <div class="scenario-target" style="color:var(--green);">目標：$70,000 ~ $72,000</div>
+      <div class="scenario-desc">
+        POS Regime 穩定，Gamma-MP $72,000 引力主導。
+        FR 轉正後造市商反向對沖加速上行。
+        廣阻力帶突破後通暢至 Call Wall。
+      </div>
+    </div>
+    <div class="scenario-box secondary">
+      <div class="scenario-name">情境A — 強勢反彈</div>
+      <div class="scenario-prob" style="color:var(--accent);">10%</div>
+      <div class="scenario-target" style="color:var(--accent);">目標：$74,000 ~ $78,000</div>
+      <div class="scenario-desc">
+        需催化劑（ETF 資金、宏觀轉向）驅動突破廣阻力帶。
+        Call Wall $78,000 提供最終阻力。
+        機構遠端 Call 佈局受益。
+      </div>
+    </div>
+    <div class="scenario-box tertiary">
+      <div class="scenario-name">SS — 深跌情境</div>
+      <div class="scenario-prob down">35%</div>
+      <div class="scenario-target" style="color:var(--red);">目標：$62,000 ~ $65,000</div>
+      <div class="scenario-desc">
+        充分條件：FR 持續深負 + 催化劑（清算潮）+ 跌破 Gamma Flip。
+        跌破 $67,500 → NEG Regime → 造市商放大器啟動。
+        28天足夠時間讓尾部風險實現。
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px;">
+    <div class="card-title">SS 充分條件乘積法（Rule #8）</div>
+    <div class="equation">
+      P(SS) = P(FR負) × P(催化劑15%) × P(突破站穩) × P(時間)<br>
+      <span style="color:var(--text-dim); font-size:11px;">= ~0.70 × 0.15 × 0.60 × (28d足夠)</span><br>
+      <span class="eq-highlight">= 35%（24APR26 週期）</span>
+    </div>
+    <div style="font-size:12px; color:var(--text-dim); line-height:1.8; margin-top:8px;">
+      注：SS 概率與情境B 不互斥（貝葉斯框架）。情境B 82% 為結算中位預測，SS 35% 為尾部風險評估。<br>
+      觸發條件：FR 穿越 -0.01% 或 Spot 跌破 $67,500（Gamma Flip）。
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     TAB 5: 技術面
+════════════════════════════════════════ -->
+<div id="tab-technicals" class="panel">
+  <div class="grid-3">
+    <!-- 15min -->
+    <div class="card">
+      <div class="card-title">15min <span style="color:var(--text-dim);">可靠性 30%</span></div>
+      <div class="indicator-row"><span class="indicator-name">EMA5</span><span class="indicator-value">68,502</span></div>
+      <div class="indicator-row"><span class="indicator-name">EMA10</span><span class="indicator-value">68,573</span></div>
+      <div class="indicator-row"><span class="indicator-name">EMA30</span><span class="indicator-value">68,674</span></div>
+      <div class="indicator-row"><span class="indicator-name">MACD DIF</span><span class="indicator-value down">-69.01</span></div>
+      <div class="indicator-row"><span class="indicator-name">MACD DEA</span><span class="indicator-value down">-46.18</span></div>
+      <div class="indicator-row"><span class="indicator-name">RSI6</span><span class="indicator-value" style="color:var(--yellow);">30.00</span></div>
+      <div class="indicator-row"><span class="indicator-name">RSI12</span><span class="indicator-value">38.06</span></div>
+      <div class="indicator-row"><span class="indicator-name">RSI24</span><span class="indicator-value">41.97</span></div>
+      <div style="margin-top:10px; padding:8px; background:var(--bg3); border-radius:3px; font-size:11px; color:var(--text-dim);">
+        Spot 在所有 EMA 下方 · 死叉 · RSI6 精確臨界值
+      </div>
+    </div>
+
+    <!-- 4h -->
+    <div class="card">
+      <div class="card-title">4h <span style="color:var(--text-dim);">可靠性 62%</span></div>
+      <div class="indicator-row"><span class="indicator-name">EMA5</span><span class="indicator-value">68,688</span></div>
+      <div class="indicator-row"><span class="indicator-name">EMA10</span><span class="indicator-value">69,139</span></div>
+      <div class="indicator-row"><span class="indicator-name">EMA30</span><span class="indicator-value">69,791</span></div>
+      <div class="indicator-row"><span class="indicator-name">EMA200</span><span class="indicator-value" style="color:var(--yellow);">69,789</span></div>
+      <div class="indicator-row"><span class="indicator-name">MACD DIF</span><span class="indicator-value down">-447.31</span></div>
+      <div class="indicator-row"><span class="indicator-name">MACD DEA</span><span class="indicator-value down">-206.34</span></div>
+      <div class="indicator-row"><span class="indicator-name">RSI6</span><span class="indicator-value down">25.48 ⚠</span></div>
+      <div class="indicator-row"><span class="indicator-name">RSI12</span><span class="indicator-value">36.23</span></div>
+      <div class="indicator-row"><span class="indicator-name">RSI24</span><span class="indicator-value">42.13</span></div>
+      <div style="margin-top:10px; padding:8px; background:var(--bg3); border-radius:3px; font-size:11px; color:var(--red);">
+        ⚠ 真實超賣（Rule#3 效果×1.0）· MACD 加速惡化
+      </div>
+    </div>
+
+    <!-- 1D -->
+    <div class="card">
+      <div class="card-title">1D <span style="color:var(--text-dim);">可靠性 70%</span></div>
+      <div class="indicator-row"><span class="indicator-name">EMA5</span><span class="indicator-value">69,430</span></div>
+      <div class="indicator-row"><span class="indicator-name">EMA10</span><span class="indicator-value">69,866</span></div>
+      <div class="indicator-row"><span class="indicator-name">EMA30</span><span class="indicator-value">70,256</span></div>
+      <div class="indicator-row"><span class="indicator-name">EMA200</span><span class="indicator-value" style="color:var(--accent2);">86,550</span></div>
+      <div class="indicator-row"><span class="indicator-name">MACD DIF</span><span class="indicator-value down">-165.90</span></div>
+      <div class="indicator-row"><span class="indicator-name">MACD DEA</span><span class="indicator-value up">+24.27</span></div>
+      <div class="indicator-row"><span class="indicator-name">RSI6</span><span class="indicator-value" style="color:var(--yellow);">38.30</span></div>
+      <div class="indicator-row"><span class="indicator-name">RSI12</span><span class="indicator-value">44.54</span></div>
+      <div class="indicator-row"><span class="indicator-name">RSI24</span><span class="indicator-value">45.29</span></div>
+      <div style="margin-top:10px; padding:8px; background:var(--bg3); border-radius:3px; font-size:11px; color:var(--text-dim);">
+        MACD 繼續惡化 · DIF/DEA 即將交叉死叉
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     TAB 6: 統一場論
+════════════════════════════════════════ -->
+<div id="tab-framework" class="panel">
+  <div class="equation" style="margin-bottom:20px;">
+    P(結算在X) = <span class="eq-value">0.40</span>×GBM + <span class="eq-value">0.10</span>×GEX + <span class="eq-value">0.28</span>×行為信號 + <span class="eq-value">0.12</span>×貝葉斯 + <span class="eq-value">0.10</span>×時間衰減
+  </div>
+
+  <div class="grid-2">
+    <div>
+      <div class="rule-item">
+        <div class="rule-num">RULE #1</div>
+        <div class="rule-title">Put Wall 三態</div>
+        <div class="rule-desc">OTM → Gamma≈0無影響 · ATM → 最不穩定 · ITM → 造市商淨買入=動態支撐</div>
+      </div>
+      <div class="rule-item">
+        <div class="rule-num">RULE #2</div>
+        <div class="rule-title">MACD 信號壽命標準</div>
+        <div class="rule-desc">15min 最低6.5h · 4h 最低104h · 1D 最低26天 · 壽命不足=噪音</div>
+      </div>
+      <div class="rule-item">
+        <div class="rule-num">RULE #3</div>
+        <div class="rule-title">RSI 機械超賣篩選</div>
+        <div class="rule-desc">機械滾動效果×0.5 · 真實超賣效果×1.0 · 判斷依據：時間+方向一致性</div>
+      </div>
+      <div class="rule-item">
+        <div class="rule-num">RULE #4</div>
+        <div class="rule-title">重複確認邊際遞減</div>
+        <div class="rule-desc">N=1首次：1.5-2x · N=2-3：1.1-1.2x · N=4-5：1.05x · N≥6：1.02x</div>
+      </div>
+      <div class="rule-item">
+        <div class="rule-num">RULE #5</div>
+        <div class="rule-title">FR 振盪模式</div>
+        <div class="rule-desc">空頭每8h補倉 · 下限趨勢越深=信念越堅定 · FR穿越0%=最重要觸發</div>
+      </div>
+    </div>
+    <div>
+      <div class="rule-item">
+        <div class="rule-num">RULE #6</div>
+        <div class="rule-title">GEX 數據代表性</div>
+        <div class="rule-desc">USDC子集絕對量無效 · 方向/結構有效 · PCR需OI≥100張</div>
+      </div>
+      <div class="rule-item">
+        <div class="rule-num">RULE #7</div>
+        <div class="rule-title">USDT LPI 五級</div>
+        <div class="rule-desc">$0.9999+(正常) · $0.999x(微壓) · $0.99x(緊張) · $0.97x(恐慌) · &lt;$0.97(危機)</div>
+      </div>
+      <div class="rule-item">
+        <div class="rule-num">RULE #8</div>
+        <div class="rule-title">SS 充分條件乘積法</div>
+        <div class="rule-desc">P(SS) = P(FR負)×P(催化劑15%)×P(突破站穩)×P(時間)</div>
+      </div>
+      <div class="rule-item">
+        <div class="rule-num">RULE #9</div>
+        <div class="rule-title">EMH 邊界</div>
+        <div class="rule-desc">點預測最佳=當前價 · 框架alpha在分布形狀+條件概率+風控</div>
+      </div>
+      <div class="rule-item" style="border-left-color: var(--accent);">
+        <div class="rule-num" style="color:var(--green);">RULE #10 ✦ NEW</div>
+        <div class="rule-title">Regime 框架</div>
+        <div class="rule-desc">POS(Spot>GF)=穩定器,Layer合併 · NEG(Spot&lt;GF)=放大器,Layer嚴格分離</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     TAB 7: 驗證記錄
+════════════════════════════════════════ -->
+<div id="tab-history" class="panel">
+  <div class="card" style="margin-bottom:16px;">
+    <div class="card-title">預測驗證記錄</div>
+    <table>
+      <tr><th>到期日</th><th>預測中位</th><th>實際結算</th><th>誤差</th><th>σ</th><th>狀態</th></tr>
+      <tr>
+        <td>26MAR26</td>
+        <td>$70,860</td>
+        <td>$70,020</td>
+        <td>$840</td>
+        <td>0.41σ</td>
+        <td class="verified">✓</td>
+      </tr>
+      <tr>
+        <td>Fib $68,112</td>
+        <td>—</td>
+        <td>$68,115.8</td>
+        <td>$3.8</td>
+        <td>—</td>
+        <td class="verified">✓</td>
+      </tr>
+      <tr>
+        <td>27MAR26</td>
+        <td>$68,636</td>
+        <td style="color:var(--green); font-weight:700;">$68,625.39</td>
+        <td style="color:var(--green);">$10.6</td>
+        <td style="color:var(--green); font-weight:700;">0.02σ ✓✓</td>
+        <td class="verified">✓✓</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-title">快照序列（S12~S21）</div>
+    <table>
+      <tr><th>快照</th><th>時間</th><th>Spot</th><th>FR</th><th>L/S</th><th>備註</th><th>版本</th></tr>
+      <tr><td>S12</td><td>3/26 12:29</td><td>$71,443</td><td style="color:var(--green);">+0.535%</td><td>—</td><td style="color:var(--text-dim);">σ=$2,072</td><td>—</td></tr>
+      <tr><td>S13</td><td>3/26 11:12</td><td>$70,848</td><td style="color:var(--green);">+0.032%</td><td>1.479</td><td style="color:var(--text-dim);">情境B 52%</td><td>v1.0</td></tr>
+      <tr><td>S16</td><td>3/26 20:10</td><td>$69,355</td><td style="color:var(--red);">-0.396%</td><td>1.923</td><td style="color:var(--text-dim);">SS結構建立</td><td>v1.3</td></tr>
+      <tr><td>S17</td><td>3/26 21:38</td><td>$69,356</td><td style="color:var(--red);">-0.538%</td><td>2.033</td><td style="color:var(--text-dim);">9輪全面反駁</td><td>v1.5</td></tr>
+      <tr><td>S18</td><td>3/27 11:00</td><td>$68,867</td><td style="color:var(--yellow);">+0.001%</td><td>2.239</td><td class="verified">Fib差$3 ✓</td><td>v1.6</td></tr>
+      <tr><td>S19</td><td>3/27 13:10</td><td>$68,671</td><td style="color:var(--red);">-0.469%</td><td>2.261</td><td style="color:var(--text-dim);">4h RSI雙超賣</td><td>v1.7</td></tr>
+      <tr><td>S20</td><td>3/27 13:32</td><td>$68,546</td><td style="color:var(--red);">-0.528%</td><td>2.268</td><td style="color:var(--text-dim);">RSI機械篩選</td><td>v1.7b</td></tr>
+      <tr><td style="color:var(--yellow);">結算</td><td>3/27 16:00</td><td style="color:var(--green); font-weight:700;">$68,625.39</td><td>—</td><td>—</td><td class="verified">0.02σ ✓✓</td><td>—</td></tr>
+      <tr><td style="color:var(--accent);">S21</td><td>3/27 16:20</td><td>$68,350</td><td style="color:var(--red);">-0.669%</td><td>2.287</td><td style="color:var(--accent);">新週期開始</td><td style="color:var(--accent);">v1.8</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     TAB 8: 名詞解釋
+════════════════════════════════════════ -->
+<div id="tab-glossary" class="panel">
+  <div class="grid-2">
+    <div>
+      <div class="glossary-section">
+        <div class="glossary-title">市場指標</div>
+        <div class="glossary-item"><div class="glossary-term">DVOL（Deribit Volatility Index）</div><div class="glossary-def">Deribit 計算的 BTC 30天隱含波動率指數，反映市場對未來波動的預期定價。DVOL 越高代表市場越不確定。</div></div>
+        <div class="glossary-item"><div class="glossary-term">FR（Funding Rate）資金費率</div><div class="glossary-def">永續合約多空雙方的定期支付費率。FR &gt; 0% 多方付空方（多頭過熱），FR &lt; 0% 空方付多方（空頭主導）。8h 週期。</div></div>
+        <div class="glossary-item"><div class="glossary-term">L/S（Long/Short Ratio）多空比</div><div class="glossary-def">持有多單的帳戶數量 / 持有空單的帳戶數量。L/S &gt; 2 表示空頭超配，為逆向指標。</div></div>
+        <div class="glossary-item"><div class="glossary-term">OI（Open Interest）未平倉量</div><div class="glossary-def">目前市場上尚未結算的合約總量。OI 持續上升 + FR 轉向 = 強方向性信號。</div></div>
+      </div>
+
+      <div class="glossary-section">
+        <div class="glossary-title">期權術語</div>
+        <div class="glossary-item"><div class="glossary-term">GEX（Gamma Exposure）Gamma 暴露</div><div class="glossary-def">造市商整體 Gamma 頭寸的加總。正 GEX = 造市商是穩定器（反向對沖）；負 GEX = 造市商是放大器（同向對沖）。</div></div>
+        <div class="glossary-item"><div class="glossary-term">Gamma Flip</div><div class="glossary-def">GEX 從正轉負的臨界價格。Spot 在上方（POS Regime）時市場相對穩定；跌破後（NEG Regime）波動加劇。</div></div>
+        <div class="glossary-item"><div class="glossary-term">PCR（Put/Call Ratio）</div><div class="glossary-def">Put OI / Call OI。PCR &gt; 1 表示 Put 為主（偏防禦），PCR &lt; 1 表示 Call 為主（偏進攻）。需結合跨期結構分析。</div></div>
+        <div class="glossary-item"><div class="glossary-term">Call Wall / Put Wall</div><div class="glossary-def">特定行使價上 Call/Put OI 集中的位置。Call Wall 形成上方阻力，Put Wall 提供下方支撐（ATM 時最強）。</div></div>
+      </div>
+    </div>
+    <div>
+      <div class="glossary-section">
+        <div class="glossary-title">GEX 框架術語</div>
+        <div class="glossary-item"><div class="glossary-term">Gamma-MP（Gamma Magnet Point）</div><div class="glossary-def">Gamma 集中度最高的價格，對 Spot 具有磁吸效應。造市商 Delta 對沖行為使 Spot 傾向向此靠攏，是結算中位預測的核心錨點。</div></div>
+        <div class="glossary-item"><div class="glossary-term">POS Regime / NEG Regime</div><div class="glossary-def">POS（正 Gamma 體制）：Spot &gt; Gamma Flip，造市商穩定器，波動自我抑制。NEG（負 Gamma 體制）：Spot &lt; Gamma Flip，造市商放大器，波動自我強化。</div></div>
+        <div class="glossary-item"><div class="glossary-term">SS（Short Squeeze / Shock Scenario）</div><div class="glossary-def">框架中指深跌情境（Shock Scenario）。充分條件：FR 深負 + 催化劑 + 突破 Gamma Flip + 足夠時間。P(SS) 用乘積法計算。</div></div>
+        <div class="glossary-item"><div class="glossary-term">Layer1 / Layer2</div><div class="glossary-def">Layer1：GEX 結構直接推導的阻力/支撐。Layer2：技術指標（EMA、MACD 等）的廣阻力帶。POS Regime 下兩層合併計算；NEG Regime 下嚴格分離。</div></div>
+      </div>
+
+      <div class="glossary-section">
+        <div class="glossary-title">技術指標</div>
+        <div class="glossary-item"><div class="glossary-term">MACD（DIF / DEA / Histogram）</div><div class="glossary-def">DIF = 短期EMA - 長期EMA，DEA = DIF 的信號線。DIF &lt; DEA = 死叉（看跌），DIF &gt; DEA = 金叉（看漲）。框架要求信號持續時間達到壽命標準才算有效。</div></div>
+        <div class="glossary-item"><div class="glossary-term">RSI（Relative Strength Index）</div><div class="glossary-def">相對強弱指標，範圍 0-100。RSI &lt; 30 超賣，RSI &gt; 70 超買。框架區分「機械滾動（×0.5）」和「真實超賣（×1.0）」兩種效果。</div></div>
+        <div class="glossary-item"><div class="glossary-term">EMA（Exponential Moving Average）</div><div class="glossary-def">指數移動平均線。框架關注 EMA5/10/30/200。EMA200(4h) 與 EMA30(2h) 之間的密集帶構成 Layer2 廣阻力帶。</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /main -->
+
+<script>
+function showTab(id) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+  event.target.classList.add('active');
+}
+</script>
+</body>
+</html>
