@@ -1,64 +1,64 @@
 # SideProject_Options — GEX Oracle BTC Deribit Options Analytics
 
-> 對抗性碰撞框架 × 統一場論  
+> Adversarial Collision Framework × Unified Field Theory  
 > Twitter: [@BTC_OptionsTW](https://twitter.com/BTC_OptionsTW) | [@kai6366](https://twitter.com/kai6366)
 
 ---
 
-## 專案結構
+## Project Structure
 
 ```
 gex-oracle/
-├── dashboards/        # HTML 儀表板（每個快照一份，版本化）
+├── dashboards/        # HTML dashboards (one per snapshot, versioned)
 │   └── S{N}_YYYYMMDD_dashboard.html
-├── framework/         # 統一場論規則文件 & 狀態轉移文件
+├── framework/         # Unified Field Theory rule docs & state transfer docs
 │   ├── unified_field_theory_v{N}.md
 │   └── state_transfer_S{N}.md
-├── data/              # CSV 原始數據快照（.gitignore 可選排除）
+├── data/              # Raw CSV data snapshots (.gitignore can optionally exclude)
 │   └── snapshots/
-├── scripts/           # 自動化腳本
+├── scripts/           # Automation scripts
 │   └── upload.sh
-└── docs/              # 方法論說明
+└── docs/              # Methodology documentation
     └── methodology.md
 ```
 
 ---
 
-## 分析框架版本
+## Framework Version History
 
-| 版本 | 快照 | 主要更新 |
-|------|------|----------|
-| v1.0 | S13 | 初始對抗性碰撞框架 |
-| v1.3 | S16 | SS 結構建立 |
-| v1.5 | S17 | 9 輪全面反駁完成 |
-| v1.6 | S18 | Fib 驗證（誤差 $3） |
-| v1.7 | S19 | 4h RSI 雙超賣規則 |
-| v1.7b | S20 | RSI 機械篩選補充 |
-| v1.8 | S21 | POS Regime 完整框架 |
-| v2.0 | S31 | 當前最新版本 |
+| Version | Snapshot | Key Updates |
+|---------|----------|-------------|
+| v1.0 | S13 | Initial adversarial collision framework |
+| v1.3 | S16 | Short Squeeze structure established |
+| v1.5 | S17 | 9-round full adversarial refutation complete |
+| v1.6 | S18 | Fibonacci support validation (error $3) |
+| v1.7 | S19 | 4h RSI dual-oversold classification rule |
+| v1.7b | S20 | RSI mechanical filter supplement |
+| v1.8 | S21 | POS/NEG Regime complete separation (Rule #10) |
+| v2.0 | S31 | Current active version |
 
 ---
 
-## 預測驗證記錄
+## Prediction Validation Record
 
-| 到期日 | 預測中位 | 實際結算 | 誤差 | σ |
-|--------|---------|---------|------|---|
+| Expiry | Predicted Median | Actual Settlement | Error | σ |
+|--------|-----------------|-------------------|-------|---|
 | 26MAR26 | $70,860 | $70,020 | $840 | 0.41σ ✓ |
 | 27MAR26 | $68,636 | $68,625.39 | $10.6 | 0.02σ ✓✓ |
 
 ---
 
-## 統一場方程式
+## Unified Field Equation
 
 ```
-P(結算在X) = 0.40×GBM + 0.10×GEX + 0.28×行為信號
-             + 0.12×貝葉斯 + 0.10×時間衰減
+P(settlement at X) = 0.40×GBM + 0.10×GEX + 0.28×behavioral signals
+                   + 0.12×Bayesian + 0.10×time decay
 ```
 
 ---
 
-## 數據來源
+## Data Sources
 
-- **期權數據**：Deribit CSV Export（BTC-* 完整工具集）
-- **價格/技術**：Binance（15min / 4h / 1D）
-- **DVOL**：Deribit 波動率指數
+- **Options data**: Deribit CSV Export (full BTC-* instrument set)
+- **Price / Technicals**: Binance (15min / 4h / 1D)
+- **DVOL**: Deribit Volatility Index

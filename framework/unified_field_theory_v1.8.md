@@ -1,95 +1,97 @@
-# 統一場論 v1.8 — GEX Oracle 核心規則
+# Unified Field Theory v1.8 — GEX Oracle Core Rules
 
-> 快照 S21｜2026-03-27｜版本 v1.8
-
----
-
-## 統一場方程式
-
-```
-P(結算在X) = 0.40×GBM + 0.10×GEX + 0.28×行為信號
-             + 0.12×貝葉斯 + 0.10×時間衰減
-```
+> Snapshot S21 · 2026-03-27 · Version v1.8
 
 ---
 
-## 核心規則
+## Unified Field Equation
 
-### Rule #1 — Put Wall 三態
-- OTM（Spot 遠高於 PW）→ Gamma ≈ 0，無影響
-- ATM（Spot ≈ PW）→ Gamma 最大，最不穩定
-- ITM（Spot 低於 PW）→ 造市商淨買入 = 動態支撐
-
-### Rule #2 — MACD 信號壽命標準
-- 15min 最低 6.5h / 4h 最低 104h / 1D 最低 26天
-- 壽命不足 = 噪音，不記錄為有效信號
-
-### Rule #3 — RSI 機械超賣篩選
-- 機械滾動（RSI 短時間大幅回升 + Spot 同期下跌）= 效果 × 0.5
-- 真實超賣（時間 > 1 個蠟燭 + RSI 方向一致）= 效果 × 1.0
-
-### Rule #4 — 重複確認邊際遞減
-- N=1 首次：1.5-2x
-- N=2-3：1.1-1.2x
-- N=4-5：1.05x
-- N≥6：1.02x
-
-### Rule #5 — FR 振盪模式
-- 空頭每 8h 週期補倉
-- 振盪下限趨勢越深 = 空頭信念越堅定
-- FR 穿越 0% = 多空成本方向改變 = 最重要觸發信號
-
-### Rule #6 — GEX 數據代表性
-- USDC 子集，絕對量無效，方向/結構有效
-- PCR 跨期需 OI ≥ 100 張才有統計意義
-
-### Rule #7 — USDT LPI 五級
-- $0.9999+（正常）/ $0.999x（微壓）/ $0.99x（緊張）
-- $0.97x（恐慌）/ <$0.97（危機）
-
-### Rule #8 — SS 充分條件乘積法
 ```
-P(SS) = P(FR 負) × P(催化劑 15%) × P(突破站穩) × P(時間)
+P(settlement at X) = 0.40×GBM + 0.10×GEX + 0.28×behavioral signals
+                   + 0.12×Bayesian + 0.10×time decay
 ```
-- 27MAR 週期：12-25%
-- 24APR 週期（28天）：35%
-
-### Rule #9 — EMH 邊界
-- 點預測最佳 = 當前價
-- 框架 alpha 在分布形狀 + 條件概率 + 風控
-
-### Rule #10 — Regime 框架
-- POS Regime（Spot > Gamma Flip）= 造市商穩定器，Layer1+Layer2 合併
-- NEG Regime（Spot < Gamma Flip）= 造市商放大器，Layer1/Layer2 嚴格分離
 
 ---
 
-## 觸發條件
+## Core Rules
 
-### 硬性觸發（任一滿足 → 立即更新 + 深度碰撞）
-- FR 穿越：-0.01% / -0.005% / 0% / +0.005% / +0.01%
-- Spot 移動：> ±0.5σ（T=28天約 ±$4,954）
-- L/S 整數：1.5 / 2.0 / 2.5 / 3.0
-- OI 跳動：> ±300 張，需配合 FR 方向
-- 時間強制：T = 24h / 6h / 2h 各一次
+### Rule #1 — Put Wall Three-State Model
+- OTM (Spot far above PW) → Gamma ≈ 0, no impact on price
+- ATM (Spot ≈ PW) → Maximum gamma, most unstable zone
+- ITM (Spot below PW) → Market maker net long = dynamic support floor
 
-### 不觸發條件
-- RSI 機械滾動（RSI 升 + Spot 跌）
-- 重複確認 N≥6
-- MACD 壽命不足
-- T < 1h（停止分析，只監控）
-- 主觀欲望（沒有信號滿足）
+### Rule #2 — MACD Signal Lifetime Standard
+- 15min: minimum 6.5 hours
+- 4h: minimum 104 hours
+- 1D: minimum 26 days
+- Signal below minimum lifetime = noise; do not record as a valid signal
+
+### Rule #3 — RSI Mechanical Oversold Filter
+- Mechanical rollover (RSI rebounds sharply while Spot falls simultaneously) = effect ×0.5
+- Genuine oversold (duration > 1 candle + RSI direction consistent with price) = effect ×1.0
+
+### Rule #4 — Diminishing Returns on Repeated Confirmation
+- N=1 (first time): ×1.5–2.0
+- N=2–3: ×1.1–1.2
+- N=4–5: ×1.05
+- N≥6: ×1.02
+
+### Rule #5 — Funding Rate Oscillation Pattern
+- Shorts reload every 8h cycle
+- Deeper oscillation floor trend = stronger short conviction
+- FR crossing 0% = change in long/short cost direction = most important trigger signal
+
+### Rule #6 — GEX Data Representativeness
+- USDC subset: absolute quantities invalid; direction and structure valid
+- Cross-expiry PCR requires OI ≥ 100 contracts for statistical significance
+
+### Rule #7 — USDT LPI Five-Level Scale
+- $0.9999+ (normal) / $0.999x (micro-stress) / $0.99x (tense)
+- $0.97x (panic) / <$0.97 (crisis)
+
+### Rule #8 — Short Squeeze Sufficient-Condition Product Method
+```
+P(SS) = P(FR negative) × P(catalyst 15%) × P(breakout holds) × P(time)
+```
+- 27MAR cycle: 12–25%
+- 24APR cycle (28 days): 35%
+
+### Rule #9 — EMH Boundary
+- Best point prediction = current spot price
+- Framework alpha lies in: distribution shape + conditional probability + risk management
+
+### Rule #10 — Regime Framework  ✦ NEW in v1.8
+- POS Regime (Spot > Gamma Flip): market maker acts as stabilizer; Layer1 + Layer2 merged
+- NEG Regime (Spot < Gamma Flip): market maker acts as amplifier; Layer1 / Layer2 strictly separated
 
 ---
 
-## 版本歷程
+## Trigger Conditions
 
-| 版本 | 快照 | 核心更新 |
-|------|------|----------|
-| v1.0 | S13 | 初始框架建立 |
-| v1.3 | S16 | SS 充分條件乘積法 |
-| v1.5 | S17 | 9 輪對抗性碰撞完整規範 |
-| v1.6 | S18 | Fib 支撐三態模型 |
-| v1.7 | S19 | 4h RSI 雙超賣分類 |
-| v1.7b | S20 | RSI 機械篩選（Rule#3 補充） |
-| v1.8 | S21 | POS/NEG Regime 完整分離（Rule#10） |
+### Hard Triggers (any one satisfied → immediate update + deep collision)
+- FR crossover: -0.01% / -0.005% / 0% / +0.005% / +0.01%
+- Spot move: > ±0.5σ (T=28d ≈ ±$4,954)
+- L/S round number: 1.5 / 2.0 / 2.5 / 3.0 (behavioral signal; reduces GEX weight)
+- OI jump: > ±300 contracts, must align with FR direction
+- Forced time updates: T = 24h / 6h / 2h (one update each)
+
+### Non-Trigger Conditions
+- Mechanical RSI rollover (RSI rises while Spot falls)
+- Repeated confirmation N≥6
+- MACD signal with insufficient lifetime
+- T < 1h (stop analysis, monitor only)
+- Subjective desire (no signal condition is satisfied)
+
+---
+
+## Version History
+
+| Version | Snapshot | Core Update |
+|---------|----------|-------------|
+| v1.0 | S13 | Initial framework established |
+| v1.3 | S16 | SS sufficient-condition product method |
+| v1.5 | S17 | Full 9-round adversarial collision specification |
+| v1.6 | S18 | Fibonacci support three-state model |
+| v1.7 | S19 | 4h RSI dual-oversold classification |
+| v1.7b | S20 | RSI mechanical filter (Rule #3 supplement) |
+| v1.8 | S21 | POS/NEG Regime complete separation (Rule #10) |

@@ -1,61 +1,61 @@
-# GEX Oracle 方法論說明
+# GEX Oracle — Methodology
 
-## 核心架構
+## Core Architecture
 
-### 對抗性碰撞框架
-H_BULL 和 H_BEAR 輪流攻擊對方論點，Oracle 裁判收斂。
-- 每輪結束後更新統一場論版本
-- 終止條件：重複論點出現
+### Adversarial Collision Framework
+H_BULL and H_BEAR take turns attacking each other's arguments. An Oracle referee adjudicates convergence.
+- Framework version is updated after each round concludes
+- Termination condition: a repeated argument is detected
 
-### GEX（Gamma Exposure）分析
-- **Gamma Flip**：造市商從空 Gamma 轉為多 Gamma 的臨界點
-- **Gamma-MP（磁力點）**：最大 Gamma 集中，對 Spot 有吸引力
-- **Call Wall / Put Wall**：期權牆，大量 OI 集中，形成阻力/支撐
-- **PCR（Put/Call Ratio）**：跨期比較，近端防禦 vs. 遠端進攻
+### GEX (Gamma Exposure) Analysis
+- **Gamma Flip**: The price at which market makers transition from short gamma to long gamma
+- **Gamma-MP (Gamma Magnet Point)**: Highest gamma concentration; exerts gravitational pull on spot price
+- **Call Wall / Put Wall**: Option walls — large OI concentrations forming resistance / support
+- **PCR (Put/Call Ratio)**: Cross-expiry comparison; near-term defense vs. far-term offense
 
-### Regime 框架
-| Regime | 條件 | 造市商行為 | Layer 合併 |
-|--------|------|-----------|-----------|
-| POS | Spot > Gamma Flip | 穩定器（反向對沖） | Layer1 + Layer2 合併 |
-| NEG | Spot < Gamma Flip | 放大器（同向對沖） | Layer1 / Layer2 嚴格分離 |
-
----
-
-## 數據分層
-
-### Layer 1（高可信度）
-- GEX 結構（Gamma Flip、Call/Put Wall）
-- 貝葉斯情境概率
-- FR 穿越觸發
-
-### Layer 2（中可信度）
-- 技術指標（MACD、RSI、EMA）
-- L/S 比率行為信號
-- 跨期 PCR 結構
-
-### Layer 3（低可信度，僅輔助）
-- 15min 短線信號（可靠性 30%）
-- 機械 RSI 滾動
-- 壽命不足的 MACD 信號
+### Regime Framework
+| Regime | Condition | Market Maker Behavior | Layer Merge |
+|--------|-----------|----------------------|-------------|
+| POS | Spot > Gamma Flip | Stabilizer (counter-hedging) | Layer1 + Layer2 merged |
+| NEG | Spot < Gamma Flip | Amplifier (directional hedging) | Layer1 / Layer2 strictly separated |
 
 ---
 
-## 輸出格式
+## Signal Layers
 
-每個快照生成：
-1. **HTML 儀表板**（深色主題，多 Tab）
-   - GEX 結構分析
-   - 對抗性碰撞過程
-   - 情境概率分布
-   - 技術面摘要
-   - 統一場論規則
-   - 名詞解釋（完整版）
+### Layer 1 (High Confidence)
+- GEX structure (Gamma Flip, Call/Put Wall)
+- Bayesian scenario probabilities
+- Funding rate crossover triggers
 
-2. **狀態轉移文件**（跨對話繼承）
+### Layer 2 (Medium Confidence)
+- Technical indicators (MACD, RSI, EMA)
+- Long/Short ratio behavioral signals
+- Cross-expiry PCR structure
+
+### Layer 3 (Low Confidence — supplementary only)
+- 15min short-term signals (reliability 30%)
+- Mechanical RSI rollovers
+- MACD signals with insufficient signal lifetime
 
 ---
 
-## 免責聲明
+## Output Format
 
-本框架為學術研究性質的期權分析工具，不構成投資建議。
-所有分析基於公開數據，預測存在固有不確定性。
+Each snapshot produces:
+1. **HTML Dashboard** (dark theme, multi-tab)
+   - GEX structure analysis
+   - Adversarial collision process
+   - Scenario probability distribution
+   - Technical summary
+   - Unified Field Theory rules
+   - Full glossary
+
+2. **State Transfer Document** (for cross-conversation continuity)
+
+---
+
+## Disclaimer
+
+This framework is an academic research-grade options analysis tool and does not constitute investment advice.
+All analysis is based on publicly available data. Predictions carry inherent uncertainty.

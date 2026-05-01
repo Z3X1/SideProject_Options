@@ -1,17 +1,17 @@
 #!/bin/bash
-# GEX Oracle — GitHub 自動上傳腳本
-# 使用方式：./scripts/upload.sh <GITHUB_TOKEN> <REPO_URL> [COMMIT_MSG]
+# GEX Oracle — GitHub Auto-Upload Script
+# Usage:./scripts/upload.sh <GITHUB_TOKEN> <REPO_URL> [COMMIT_MSG]
 
 set -e
 
-TOKEN="${1:?請提供 GitHub Personal Access Token}"
-REPO_URL="${2:?請提供 Repo URL，例如 https://github.com/kai6366/gex-oracle}"
+TOKEN="${1:?GitHub Personal Access Token required}"
+REPO_URL="${2:?Repo URL required, e.g. https://github.com/Z3X1/SideProject_Options}"
 COMMIT_MSG="${3:-"chore: auto-upload snapshot $(date +%Y%m%d-%H%M%S)"}"
 
-# 從 REPO_URL 提取 owner/repo
+# Extract owner/repo from REPO_URL
 REPO_PATH=$(echo "$REPO_URL" | sed 's|https://github.com/||')
 
-# 設定帶認證的遠端 URL
+# Build authenticated remote URL
 AUTH_URL="https://${TOKEN}@github.com/${REPO_PATH}.git"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -19,50 +19,50 @@ ROOT_DIR="$(dirname "$SCRIPT_DIR")"
 
 cd "$ROOT_DIR"
 
-echo "📁 工作目錄：$ROOT_DIR"
-echo "📦 目標 Repo：$REPO_PATH"
+echo "📁 Working directory：$ROOT_DIR"
+echo "📦 Target repo：$REPO_PATH"
 
-# 初始化 git（如尚未初始化）
+# Initialize git repo if not already done
 if [ ! -d ".git" ]; then
-  echo "🔧 初始化 Git 倉庫..."
+  echo "🔧 Initializing Git repository..."
   git init
   git branch -M main
 fi
 
-# 配置 git
+# Configure git identity
 git config user.email "gex-oracle@btc-options.tw"
 git config user.name "GEX Oracle Bot"
 
-# 設定遠端
+# Set remote origin
 git remote remove origin 2>/dev/null || true
 git remote add origin "$AUTH_URL"
 
 # .gitignore
 cat > .gitignore << 'EOF'
-# 原始 CSV 數據（選擇性上傳）
+# Raw CSV data (upload selectively)
 data/snapshots/*.csv
 
-# 系統文件
+# OS files
 .DS_Store
 *.swp
 *~
 EOF
 
-# 暫存所有變更
+# Stage all changes
 git add -A
 
-# 確認有變更才提交
+# Only commit if there are staged changes
 if git diff --cached --quiet; then
-  echo "✅ 沒有新變更，無需提交"
+  echo "✅ No changes to commit"
 else
   git commit -m "$COMMIT_MSG"
-  echo "✅ 已提交：$COMMIT_MSG"
+  echo "✅ Committed：$COMMIT_MSG"
 fi
 
-# 推送
-echo "🚀 推送至 GitHub..."
+# Push to remote
+echo "🚀 Pushing to GitHub..."
 git push -u origin main --force-with-lease 2>/dev/null || git push -u origin main --force
 
 echo ""
-echo "✅ 上傳完成！"
+echo "✅ Upload complete！"
 echo "🔗 https://github.com/$REPO_PATH"
