@@ -1,15 +1,13 @@
-# GEX Oracle .gitignore
-
-# 原始 CSV 快照（體積大，選擇性上傳）
+# Raw CSV snapshots (large files, excluded by default)
 data/snapshots/*.csv
 
-# 系統文件
+# OS files
 .DS_Store
 *.swp
 *~
 __pycache__/
 *.pyc
 
-# 環境變數（不要提交 token）
+# Environment variables (never commit tokens)
 .env
 *.env

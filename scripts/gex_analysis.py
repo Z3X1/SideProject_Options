@@ -1,11 +1,11 @@
 """
 GEX Oracle — BTC Deribit Options Analysis Engine
-統一場論 v1.8 · Python 分析腳本
+Unified Field Theory v1.8 · Python Analysis Script
 
-使用方式：
+Usage:
   python gex_analysis.py --csv BTC_USDC-24APR26-export.csv --spot 68350 --dvol 52.35
 
-依賴：
+Dependencies:
   pip install pandas numpy scipy matplotlib
 """
 
@@ -15,7 +15,7 @@ import json
 from datetime import datetime, timedelta
 
 # ─────────────────────────────────────────────
-# 常數與參數
+# Constants & Parameters
 # ─────────────────────────────────────────────
 FIELD_WEIGHTS = {
     "gbm":        0.40,
@@ -38,13 +38,13 @@ FR_TRIGGERS = [-0.01, -0.005, 0.0, 0.005, 0.01]  # 百分比
 LS_TRIGGERS = [1.5, 2.0, 2.5, 3.0]
 
 # ─────────────────────────────────────────────
-# 核心計算
+# Core Calculations
 # ─────────────────────────────────────────────
 
 def compute_gbm_distribution(spot: float, dvol: float, days_to_expiry: int):
     """
     GBM（幾何布朗運動）正態分布
-    回傳：(mean, sigma, percentiles)
+    Returns: (mean, sigma, percentiles)
     """
     T_years = days_to_expiry / 365
     sigma_dollar = spot * (dvol / 100) * math.sqrt(T_years)
@@ -73,16 +73,16 @@ def classify_regime(spot: float, gamma_flip: float) -> dict:
     if spot > gamma_flip:
         return {
             "regime": "POS",
-            "description": "POS Regime — 造市商穩定器",
-            "layer_mode": "Layer1 + Layer2 合併",
-            "mm_behavior": "反向對沖，波動自我抑制",
+            "description": "POS Regime — market maker穩定器",
+            "layer_mode": "Layer1 + Layer2 merged",
+            "mm_behavior": "counter-hedging; volatility self-suppresses",
         }
     else:
         return {
             "regime": "NEG",
-            "description": "NEG Regime — 造市商放大器",
-            "layer_mode": "Layer1 / Layer2 嚴格分離",
-            "mm_behavior": "同向對沖，波動自我強化",
+            "description": "NEG Regime — market maker放大器",
+            "layer_mode": "Layer1 / Layer2 strictly separated",
+            "mm_behavior": "directional hedging; volatility self-reinforces",
         }
 
 
@@ -93,15 +93,15 @@ def classify_put_wall(spot: float, put_wall: float) -> dict:
     distance_pct = (spot - put_wall) / spot * 100
     if distance_pct > 5:
         state = "OTM"
-        description = "Gamma ≈ 0，Put Wall 對現貨無影響"
+        description = "Gamma ≈ 0; Put Wall has no impact on spot"
         impact = 0.0
     elif abs(distance_pct) <= 5:
         state = "ATM"
-        description = "Gamma 最大，最不穩定區域"
+        description = "Maximum gamma; most unstable zone"
         impact = 1.0
     else:
         state = "ITM"
-        description = "造市商淨買入 = 動態支撐"
+        description = "market maker淨買入 = 動態支撐"
         impact = 0.8
     return {"state": state, "description": description, "impact": impact, "distance_pct": round(distance_pct, 2)}
 
@@ -152,7 +152,7 @@ def check_fr_trigger(current_fr: float) -> list:
     triggered = []
     for threshold in FR_TRIGGERS:
         if abs(current_fr - threshold) < 0.001:
-            triggered.append(f"FR 穿越 {threshold}%（硬性觸發）")
+            triggered.append(f"FR crossed {threshold}% (hard trigger)")
     return triggered
 
 
@@ -179,14 +179,14 @@ def compute_bayesian_scenario(
 ) -> dict:
     """
     貝葉斯情境概率（簡化版）
-    回傳：情境B（均值回歸）、情境A（強反彈）、SS 概率
+    Returns: Scenario B (Mean Reversion)、Scenario A (Strong Rally)、SS 概率
     """
-    # 基礎概率
+    # Base probabilities
     p_b = 0.60
     p_a = 0.15
     p_ss = 0.25
 
-    # Regime 調整
+    # Regime adjustment
     if regime == "POS":
         p_b += 0.10
         p_ss -= 0.05
@@ -194,7 +194,7 @@ def compute_bayesian_scenario(
         p_ss += 0.15
         p_b -= 0.10
 
-    # FR 調整
+    # FR adjustment
     if fr < -0.005:
         p_ss += 0.10
         p_b -= 0.05
@@ -202,15 +202,15 @@ def compute_bayesian_scenario(
         p_a += 0.05
         p_ss -= 0.05
 
-    # RSI 調整
+    # RSI adjustment
     if rsi_4h < 30:
         p_b += 0.05
 
-    # L/S 調整
+    # L/S adjustment
     if ls_ratio > 2.0:
         p_ss += 0.05
 
-    # 正規化
+    # Normalize
     total = p_a + p_b + p_ss
     return {
         "scenario_b": round(p_b / total, 3),
@@ -220,42 +220,42 @@ def compute_bayesian_scenario(
 
 
 # ─────────────────────────────────────────────
-# CSV 解析（Deribit 格式）
+# CSV parsing (Deribit format)
 # ─────────────────────────────────────────────
 
 def parse_deribit_csv(filepath: str) -> dict:
     """
     解析 Deribit CSV Export，計算 GEX 結構
-    預期欄位：instrument_name, strike, type, open_interest, mark_price, gamma
+    Expected columns: instrument_name, strike, type, open_interest, mark_price, gamma
     """
     try:
         import pandas as pd
     except ImportError:
-        print("⚠ 需要 pandas：pip install pandas")
+        print("⚠ pandas required：pip install pandas")
         return {}
 
     df = pd.read_csv(filepath)
 
-    # 標準化欄位名
+    # Normalize column names
     df.columns = [c.strip().lower().replace(' ', '_') for c in df.columns]
 
     calls = df[df['type'].str.upper() == 'C'].copy()
     puts  = df[df['type'].str.upper() == 'P'].copy()
 
-    # GEX = gamma × OI × spot^2 × 0.01（造市商反向持倉）
-    # 簡化計算（無 spot 加權版本）
+    # GEX = gamma x OI x spot^2 x 0.01 (market maker inverse position)
+    # Simplified calculation (no spot-weighting)
     call_oi_by_strike = calls.groupby('strike')['open_interest'].sum()
     put_oi_by_strike  = puts.groupby('strike')['open_interest'].sum()
 
-    # 合併計算 net GEX
+    # Compute net GEX across all strikes
     all_strikes = sorted(set(call_oi_by_strike.index) | set(put_oi_by_strike.index))
     gex_by_strike = {}
     for strike in all_strikes:
         c_oi = call_oi_by_strike.get(strike, 0)
         p_oi = put_oi_by_strike.get(strike, 0)
-        gex_by_strike[strike] = c_oi - p_oi  # 正 = Call 主導
+        gex_by_strike[strike] = c_oi - p_oi  # positive = Call dominant
 
-    # 找關鍵水位
+    # Locate key price levels
     max_call_strike = call_oi_by_strike.idxmax() if len(call_oi_by_strike) > 0 else None
     max_put_strike  = put_oi_by_strike.idxmax()  if len(put_oi_by_strike) > 0 else None
 
@@ -275,7 +275,7 @@ def parse_deribit_csv(filepath: str) -> dict:
 
 
 # ─────────────────────────────────────────────
-# 主分析引擎
+# Main Analysis Engine
 # ─────────────────────────────────────────────
 
 def run_analysis(params: dict) -> dict:
@@ -297,7 +297,7 @@ def run_analysis(params: dict) -> dict:
     rsi_4h     = params.get("rsi_4h", 50.0)
     rsi_4h_mechanical = params.get("rsi_4h_mechanical", False)
 
-    # ── 計算各模組 ──
+    # --- Compute modules ---
     gbm      = compute_gbm_distribution(spot, dvol, days)
     regime   = classify_regime(spot, gamma_flip)
     pw_state = classify_put_wall(spot, put_wall)
@@ -319,8 +319,8 @@ def run_analysis(params: dict) -> dict:
         pcr      = pcr,
     )
 
-    # ── 預測目標 ──
-    target_median = gamma_mp  # Gamma-MP = 結算中位錨點（POS Regime）
+    # --- Prediction targets ---
+    target_median = gamma_mp  # Gamma-MP = settlement median anchor (POS Regime)
     target_lower  = gbm["percentiles"]["p16"]
     target_upper  = gbm["percentiles"]["p84"]
 
@@ -360,61 +360,61 @@ def print_report(result: dict):
     print(f"  {result['timestamp']}")
     print("═" * 60)
 
-    print(f"\n【市場狀態】")
+    print(f"\n[Market State]")
     print(f"  Spot    : ${result['spot']:,.0f}")
     print(f"  DVOL    : {result['dvol']}%")
     print(f"  σ(T={result['days_to_expiry']}d): ±${result['gbm']['sigma_dollar']:,.0f}")
 
     r = result['regime']
-    print(f"\n【Regime 判斷】")
+    print(f"\n[Regime Classification]")
     print(f"  {r['description']}")
     print(f"  {r['layer_mode']}")
 
     g = result['gex_structure']
-    print(f"\n【GEX 關鍵水位】")
+    print(f"\n[GEX Key Price Levels]")
     print(f"  Put Wall   : ${g['put_wall']:,}  （{result['put_wall_state']['state']}）")
     print(f"  Gamma Flip : ${g['gamma_flip']:,}")
-    print(f"  Spot       : ${result['spot']:,}  ← 當前")
+    print(f"  Spot       : ${result['spot']:,}  ← current")
     print(f"  Gamma-MP   : ${g['gamma_mp']:,}")
     print(f"  Call Wall  : ${g['call_wall']:,}")
 
     s = result['scenarios']
-    print(f"\n【情境概率】")
-    print(f"  情境B（均值回歸）: {s['scenario_b']*100:.0f}%")
-    print(f"  情境A（強反彈）  : {s['scenario_a']*100:.0f}%")
-    print(f"  SS（深跌）       : {result['ss_probability']*100:.0f}%")
+    print(f"\n[Scenario Probabilities]")
+    print(f"  Scenario B (Mean Reversion): {s['scenario_b']*100:.0f}%")
+    print(f"  Scenario A (Strong Rally)  : {s['scenario_a']*100:.0f}%")
+    print(f"  SS (Shock Scenario)       : {result['ss_probability']*100:.0f}%")
 
     t = result['target']
-    print(f"\n【預測目標】")
-    print(f"  中位 : ${t['median']:,}")
+    print(f"\n[Prediction Target]")
+    print(f"  Median: ${t['median']:,}")
     print(f"  -1σ  : ${t['lower_1sigma']:,}")
     print(f"  +1σ  : ${t['upper_1sigma']:,}")
 
     if result['fr_triggers']:
-        print(f"\n⚠ 硬性觸發：{', '.join(result['fr_triggers'])}")
+        print(f"\n⚠ Hard trigger: {', '.join(result['fr_triggers'])}")
 
     print("\n" + "═" * 60 + "\n")
 
 
 # ─────────────────────────────────────────────
-# CLI 入口
+# CLI Entry Point
 # ─────────────────────────────────────────────
 
 def main():
     parser = argparse.ArgumentParser(description="GEX Oracle 分析引擎")
-    parser.add_argument("--spot",     type=float, required=True,  help="當前 BTC 現貨價格")
-    parser.add_argument("--dvol",     type=float, required=True,  help="DVOL 波動率（百分比，例如 52.35）")
-    parser.add_argument("--days",     type=int,   default=28,     help="到期天數（預設 28）")
-    parser.add_argument("--fr",       type=float, default=0.0,    help="資金費率（百分比，例如 -0.669）")
-    parser.add_argument("--ls",       type=float, default=1.0,    help="多空比")
+    parser.add_argument("--spot",     type=float, required=True,  help="Current BTC spot price")
+    parser.add_argument("--dvol",     type=float, required=True,  help="DVOL volatility (percent, e.g. 52.35)")
+    parser.add_argument("--days",     type=int,   default=28,     help="Days to expiry (default: 28)")
+    parser.add_argument("--fr",       type=float, default=0.0,    help="Funding rate (percent, e.g. -0.669)")
+    parser.add_argument("--ls",       type=float, default=1.0,    help="Long/Short ratio")
     parser.add_argument("--pcr",      type=float, default=1.0,    help="Put/Call Ratio")
-    parser.add_argument("--gamma-flip", type=float, default=None, help="Gamma Flip 價格")
-    parser.add_argument("--gamma-mp",   type=float, default=None, help="Gamma-MP 價格")
-    parser.add_argument("--call-wall",  type=float, default=None, help="Call Wall 價格")
-    parser.add_argument("--put-wall",   type=float, default=None, help="Put Wall 價格")
+    parser.add_argument("--gamma-flip", type=float, default=None, help="Gamma Flip price")
+    parser.add_argument("--gamma-mp",   type=float, default=None, help="Gamma-MP price")
+    parser.add_argument("--call-wall",  type=float, default=None, help="Call Wall price")
+    parser.add_argument("--put-wall",   type=float, default=None, help="Put Wall price")
     parser.add_argument("--rsi-4h",   type=float, default=50.0,  help="4h RSI6")
-    parser.add_argument("--csv",      type=str,   default=None,   help="Deribit CSV 路徑")
-    parser.add_argument("--json",     action="store_true",        help="輸出 JSON 格式")
+    parser.add_argument("--csv",      type=str,   default=None,   help="Deribit CSV file path")
+    parser.add_argument("--json",     action="store_true",        help="Output in JSON format")
 
     args = parser.parse_args()
 
@@ -422,7 +422,7 @@ def main():
         "spot":          args.spot,
         "dvol":          args.dvol,
         "days_to_expiry": args.days,
-        "fr":            args.fr / 100,  # 轉為小數
+        "fr":            args.fr / 100,  # convert to decimal
         "ls_ratio":      args.ls,
         "pcr":           args.pcr,
         "rsi_4h":        args.rsi_4h,
@@ -432,9 +432,9 @@ def main():
         "put_wall":      args.put_wall   or args.spot * 0.834,
     }
 
-    # 如果有 CSV，先解析 GEX 結構
+    # If CSV provided, parse GEX structure first
     if args.csv:
-        print(f"📊 解析 CSV：{args.csv}")
+        print(f"📊 Parsing CSV: {args.csv}")
         gex_data = parse_deribit_csv(args.csv)
         if gex_data:
             if gex_data.get("call_wall"):
