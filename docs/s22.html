@@ -1,0 +1,1342 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GEX Oracle Dashboard — S22 | 2026-06-26</title>
+<style>
+  :root {
+    --bg: #0a0e17;
+    --panel: #111827;
+    --border: #1e293b;
+    --accent: #3b82f6;
+    --green: #10b981;
+    --red: #ef4444;
+    --yellow: #f59e0b;
+    --purple: #8b5cf6;
+    --cyan: #06b6d4;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --orange: #f97316;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'SF Mono', 'Consolas', monospace; font-size: 12px; }
+  
+  /* Header */
+  .header {
+    background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+    border-bottom: 2px solid var(--accent);
+    padding: 16px 24px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .header-left h1 { font-size: 20px; color: var(--accent); letter-spacing: 2px; }
+  .header-left p { color: var(--muted); font-size: 11px; margin-top: 2px; }
+  .header-right { text-align: right; }
+  .spot-price { font-size: 28px; color: var(--red); font-weight: bold; }
+  .spot-label { color: var(--muted); font-size: 10px; }
+
+  /* Tab system */
+  .tabs { display: flex; background: var(--panel); border-bottom: 1px solid var(--border); overflow-x: auto; }
+  .tab { padding: 10px 16px; cursor: pointer; white-space: nowrap; color: var(--muted); border-bottom: 2px solid transparent; transition: all 0.2s; font-size: 11px; }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); background: rgba(59,130,246,0.05); }
+  .tab-content { display: none; padding: 16px; }
+  .tab-content.active { display: block; }
+
+  /* Grid layouts */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+
+  /* Cards */
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+  }
+  .card-title {
+    font-size: 10px; color: var(--muted); letter-spacing: 1px;
+    text-transform: uppercase; margin-bottom: 8px;
+    border-bottom: 1px solid var(--border); padding-bottom: 6px;
+  }
+
+  /* KPI blocks */
+  .kpi { text-align: center; padding: 10px; }
+  .kpi-val { font-size: 22px; font-weight: bold; }
+  .kpi-lbl { font-size: 9px; color: var(--muted); margin-top: 2px; letter-spacing: 1px; }
+  .kpi-delta { font-size: 10px; margin-top: 3px; }
+
+  /* Colors */
+  .bull { color: var(--green); }
+  .bear { color: var(--red); }
+  .neutral { color: var(--yellow); }
+  .info { color: var(--cyan); }
+  .purple { color: var(--purple); }
+  .orange { color: var(--orange); }
+
+  /* Collision table */
+  .collision-layer {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-bottom: 10px;
+    overflow: hidden;
+  }
+  .layer-header {
+    background: rgba(59,130,246,0.1);
+    padding: 8px 12px;
+    display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 1px solid var(--border);
+  }
+  .layer-title { color: var(--accent); font-size: 11px; font-weight: bold; }
+  .layer-verdict { font-size: 11px; font-weight: bold; }
+  .layer-body { padding: 10px 12px; }
+  .arg-row { display: flex; gap: 8px; margin-bottom: 6px; }
+  .arg-tag { 
+    padding: 2px 6px; border-radius: 3px; font-size: 9px; 
+    font-weight: bold; white-space: nowrap; min-width: 40px; text-align: center;
+  }
+  .bull-tag { background: rgba(16,185,129,0.2); color: var(--green); }
+  .bear-tag { background: rgba(239,68,68,0.2); color: var(--red); }
+  .arg-text { color: var(--text); font-size: 10px; line-height: 1.5; flex: 1; }
+
+  /* Probability bar */
+  .prob-bar-container { margin: 6px 0; }
+  .prob-label { display: flex; justify-content: space-between; margin-bottom: 3px; }
+  .prob-label span { font-size: 10px; }
+  .prob-bar { height: 12px; background: var(--border); border-radius: 6px; overflow: hidden; }
+  .prob-fill { height: 100%; border-radius: 6px; transition: width 0.5s; }
+  .fill-green { background: linear-gradient(90deg, #059669, #10b981); }
+  .fill-red { background: linear-gradient(90deg, #b91c1c, #ef4444); }
+  .fill-yellow { background: linear-gradient(90deg, #b45309, #f59e0b); }
+  .fill-blue { background: linear-gradient(90deg, #1d4ed8, #3b82f6); }
+
+  /* EMA structure */
+  .ema-row { 
+    display: flex; justify-content: space-between; 
+    padding: 4px 8px; border-radius: 4px;
+    margin-bottom: 3px;
+  }
+  .ema-above { background: rgba(16,185,129,0.08); }
+  .ema-below { background: rgba(239,68,68,0.08); }
+  
+  /* Option strike table */
+  .strike-table { width: 100%; border-collapse: collapse; font-size: 10px; }
+  .strike-table th { 
+    color: var(--muted); text-align: right; padding: 4px 6px;
+    border-bottom: 1px solid var(--border); font-size: 9px;
+  }
+  .strike-table th:first-child { text-align: center; }
+  .strike-table td { padding: 3px 6px; text-align: right; border-bottom: 1px solid rgba(30,41,59,0.5); }
+  .strike-table td:first-child { text-align: center; font-weight: bold; }
+  .strike-atm { background: rgba(59,130,246,0.08); }
+  .strike-put-wall { background: rgba(239,68,68,0.08); }
+  .strike-call-wall { background: rgba(16,185,129,0.08); }
+
+  /* Rule box */
+  .rule-box {
+    border-left: 3px solid var(--accent);
+    padding: 6px 10px;
+    background: rgba(59,130,246,0.05);
+    border-radius: 0 4px 4px 0;
+    margin-bottom: 6px;
+    font-size: 10px;
+    line-height: 1.6;
+  }
+  .rule-new { border-left-color: var(--green); background: rgba(16,185,129,0.05); }
+  .rule-num { color: var(--accent); font-weight: bold; margin-right: 6px; }
+
+  /* Alert banner */
+  .alert {
+    border-radius: 6px; padding: 8px 12px; margin-bottom: 10px;
+    font-size: 11px; display: flex; align-items: center; gap: 8px;
+  }
+  .alert-critical { background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.4); }
+  .alert-warning { background: rgba(245,158,11,0.15); border: 1px solid rgba(245,158,11,0.4); }
+  .alert-info { background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.4); }
+  .alert-icon { font-size: 14px; }
+
+  /* Settlement output */
+  .settlement-box {
+    background: linear-gradient(135deg, rgba(59,130,246,0.1), rgba(139,92,246,0.1));
+    border: 2px solid var(--accent);
+    border-radius: 10px;
+    padding: 16px;
+    text-align: center;
+  }
+  .settlement-main { font-size: 32px; font-weight: bold; color: var(--yellow); }
+  .settlement-range { font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+  /* Timeline */
+  .timeline-item { 
+    display: flex; gap: 10px; margin-bottom: 8px;
+    padding-bottom: 8px; border-bottom: 1px solid var(--border);
+  }
+  .timeline-dot { 
+    width: 8px; height: 8px; border-radius: 50%; 
+    margin-top: 3px; flex-shrink: 0;
+  }
+  .timeline-content { flex: 1; }
+  .timeline-date { color: var(--muted); font-size: 9px; }
+  .timeline-text { font-size: 10px; line-height: 1.5; }
+
+  /* Separator */
+  hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
+
+  /* Alpha box */
+  .alpha-box {
+    background: linear-gradient(135deg, rgba(139,92,246,0.1), rgba(6,182,212,0.05));
+    border: 1px solid var(--purple);
+    border-radius: 8px;
+    padding: 14px;
+    margin-bottom: 12px;
+  }
+  .alpha-title { color: var(--purple); font-size: 12px; font-weight: bold; margin-bottom: 8px; }
+  .alpha-body { font-size: 10px; line-height: 1.8; }
+
+  /* Trade setup */
+  .trade-setup {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 10px;
+  }
+  .trade-header {
+    background: rgba(245,158,11,0.1);
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .trade-title { color: var(--yellow); font-weight: bold; font-size: 11px; }
+  .trade-body { padding: 10px 12px; }
+  .trade-row { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 10px; }
+  .trade-key { color: var(--muted); }
+  .trade-val { color: var(--text); font-weight: bold; }
+
+  /* Glossary */
+  .glossary-item { 
+    display: grid; grid-template-columns: 120px 1fr; 
+    gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--border); font-size: 10px;
+  }
+  .glossary-term { color: var(--cyan); font-weight: bold; }
+  .glossary-def { color: var(--text); line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-left">
+    <h1>⚡ GEX ORACLE DASHBOARD</h1>
+    <p>統一場論 v2.0 ｜ 快照 S22 ｜ 對抗性碰撞框架</p>
+  </div>
+  <div class="header-right">
+    <div class="spot-label">BTC SPOT (Binance Perp)</div>
+    <div class="spot-price">$60,226</div>
+    <div style="color:var(--muted);font-size:10px;">2026-06-26 16:38 UTC+8 ｜ 26JUN26 結算日</div>
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <div class="tab active" onclick="showTab('overview')">📊 總覽</div>
+  <div class="tab" onclick="showTab('collision')">⚔️ 對抗碰撞</div>
+  <div class="tab" onclick="showTab('gex')">🎯 GEX結構</div>
+  <div class="tab" onclick="showTab('technical')">📈 技術框架</div>
+  <div class="tab" onclick="showTab('settlement')">🏆 結算預測</div>
+  <div class="tab" onclick="showTab('alpha')">💡 Alpha引擎</div>
+  <div class="tab" onclick="showTab('rules')">📋 UFT規則</div>
+  <div class="tab" onclick="showTab('history')">🗂️ 快照歷史</div>
+  <div class="tab" onclick="showTab('glossary')">📖 術語表</div>
+</div>
+
+<!-- ============================================================ -->
+<!-- TAB: OVERVIEW -->
+<!-- ============================================================ -->
+<div id="tab-overview" class="tab-content active">
+
+  <!-- Critical Alerts -->
+  <div class="alert alert-critical">
+    <span class="alert-icon">🔴</span>
+    <span><strong>硬性觸發（多重）：</strong> ① 26JUN26 結算完成（週期切換）② Spot -$8,124（-0.82σ，超過±0.5σ觸發線）③ FR穿越0%（-0.00669% → +0.00444%）</span>
+  </div>
+  <div class="alert alert-warning">
+    <span class="alert-icon">⚠️</span>
+    <span><strong>矛盾信號警告：</strong> FR轉正（看多）vs L/S下降至2.0440（看空）vs OI急增+19.6%（新空頭入場）— Rule#15觸發，行為信號權重減半</span>
+  </div>
+
+  <!-- KPI Row 1 -->
+  <div class="grid-4" style="margin-bottom:12px;">
+    <div class="card kpi">
+      <div class="kpi-val bear">$60,226</div>
+      <div class="kpi-lbl">SPOT PRICE</div>
+      <div class="kpi-delta bear">▼ $8,124 (-11.88%) vs S21</div>
+    </div>
+    <div class="card kpi">
+      <div class="kpi-val bull">+0.00444%</div>
+      <div class="kpi-lbl">資金費率 (FR)</div>
+      <div class="kpi-delta bull">▲ 穿越0% ← 硬性觸發</div>
+    </div>
+    <div class="card kpi">
+      <div class="kpi-val bear">2.0440</div>
+      <div class="kpi-lbl">大戶多空比 (L/S)</div>
+      <div class="kpi-delta bear">▼ -0.243 (-10.6%) vs S21</div>
+    </div>
+    <div class="card kpi">
+      <div class="kpi-val bear">10.66萬</div>
+      <div class="kpi-lbl">持倉量 (OI)</div>
+      <div class="kpi-delta bear">▲ +1.75萬 (+19.6%)</div>
+    </div>
+  </div>
+
+  <!-- KPI Row 2 -->
+  <div class="grid-4" style="margin-bottom:12px;">
+    <div class="card kpi">
+      <div class="kpi-val neutral">$59,697</div>
+      <div class="kpi-lbl">UFT結算中位 (3JUL26)</div>
+      <div class="kpi-delta neutral">GEX Pin: $60,000</div>
+    </div>
+    <div class="card kpi">
+      <div class="kpi-val info">$4,337</div>
+      <div class="kpi-lbl">σ(T=7天)</div>
+      <div class="kpi-delta neutral">$55,889 ~ $64,563</div>
+    </div>
+    <div class="card kpi">
+      <div class="kpi-val bear">BEAR 0.588</div>
+      <div class="kpi-lbl">綜合方向裁決</div>
+      <div class="kpi-delta bear">4層平均：空頭偏向</div>
+    </div>
+    <div class="card kpi">
+      <div class="kpi-val" style="color:var(--orange);">v2.0 S22</div>
+      <div class="kpi-lbl">框架版本/快照</div>
+      <div class="kpi-delta info">+3條新規則 (R14-R16)</div>
+    </div>
+  </div>
+
+  <!-- Main content 2-col -->
+  <div class="grid-2">
+    <!-- Left: Market Context -->
+    <div>
+      <div class="card" style="margin-bottom:10px;">
+        <div class="card-title">🔄 週期切換：26JUN26結算後新局面</div>
+        <div style="font-size:10px; line-height:1.8;">
+          <div style="margin-bottom:6px;">
+            <span class="bear">■ 舊週期終結</span>：24APR26到期日結算後，26JUN26今日到期。
+            Spot $60,226 vs S21時的Gamma Flip $70,522 — 跌破幅度達 <span class="bear">$10,296（-14.6%）</span>。
+          </div>
+          <div style="margin-bottom:6px;">
+            <span class="neutral">■ 新主力到期日</span>：<strong>3JUL26（T=7天）</strong> 及 <strong>31JUL26（T=35天）</strong>
+          </div>
+          <div>
+            <span class="info">■ 結構重置</span>：所有情境概率從S21的82%情境B重置，以當前$60,226為基準重新計算。
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:10px;">
+        <div class="card-title">📊 跨期PCR結構（關鍵洞察）</div>
+        <div class="prob-bar-container">
+          <div class="prob-label">
+            <span>3JUL26 ATM PCR = 1.738</span>
+            <span class="bear">近端防禦</span>
+          </div>
+          <div class="prob-bar"><div class="prob-fill fill-red" style="width:63%"></div></div>
+        </div>
+        <div class="prob-bar-container">
+          <div class="prob-label">
+            <span>31JUL26 PCR = 0.567</span>
+            <span class="bull">中期中性偏多</span>
+          </div>
+          <div class="prob-bar"><div class="prob-fill fill-blue" style="width:40%"></div></div>
+        </div>
+        <div class="prob-bar-container">
+          <div class="prob-label">
+            <span>25SEP26 PCR = 0.790</span>
+            <span class="bull">遠端溫和樂觀</span>
+          </div>
+          <div class="prob-bar"><div class="prob-fill fill-blue" style="width:48%"></div></div>
+        </div>
+        <div style="font-size:9px;color:var(--muted);margin-top:6px;">
+          結構讀法：機構在近端大量買Put保護（恐慌），但在中遠端Call主導（樂觀）。<br>
+          → 機構預期短期仍有下行風險，但不看空中長期。
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🎯 $60,000 三期共振Pin（Rule#16）</div>
+        <div style="font-size:10px;line-height:1.8;">
+          <div>• 3JUL26: $60k Call 748張 / Put 369張 → ATM造市商中性</div>
+          <div>• 31JUL26: $60k Put OI = <span class="bear">1,774張</span>（最大單一Put Wall）</div>
+          <div>• 25SEP26: $60k Put OI = <span class="bear">4,182張</span>（序列最大）</div>
+          <div style="margin-top:6px;padding:6px;background:rgba(245,158,11,0.1);border-radius:4px;border-left:3px solid var(--yellow);">
+            <span class="neutral">→ 三個到期日共同將$60k設為核心磁吸</span><br>
+            機構已用Put Wall告知市場：$60k是本輪週期的心理支撐/重力中心。
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Signals -->
+    <div>
+      <div class="card" style="margin-bottom:10px;">
+        <div class="card-title">⚡ 行為信號矛盾分析（Rule#15）</div>
+        <div style="font-size:10px;line-height:2;">
+          <table style="width:100%;border-collapse:collapse;">
+            <tr>
+              <td style="color:var(--muted);">信號</td>
+              <td style="color:var(--muted);">值</td>
+              <td style="color:var(--muted);">方向</td>
+              <td style="color:var(--muted);">強度</td>
+            </tr>
+            <tr style="border-top:1px solid var(--border);">
+              <td>FR轉正</td>
+              <td class="bull">+0.00444%</td>
+              <td class="bull">多</td>
+              <td>弱（低水位）</td>
+            </tr>
+            <tr>
+              <td>L/S下降</td>
+              <td class="bear">2.044 ↓</td>
+              <td class="bear">空</td>
+              <td>中強</td>
+            </tr>
+            <tr>
+              <td>OI急增</td>
+              <td class="bear">+19.6%</td>
+              <td class="bear">空</td>
+              <td>強（新空倉）</td>
+            </tr>
+            <tr>
+              <td>24h低點</td>
+              <td class="bull">$58,030</td>
+              <td class="bull">測試支撐</td>
+              <td>中</td>
+            </tr>
+          </table>
+          <div style="margin-top:8px;padding:6px;background:rgba(239,68,68,0.08);border-radius:4px;">
+            <span class="bear">矛盾結論</span>：FR轉正非「空頭平倉」驅動，而是「多頭被迫進場接盤」。
+            OI急增+L/S下降 = <strong>大戶空頭在下跌中繼續建倉</strong>，空頭信念堅定。
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:10px;">
+        <div class="card-title">📉 3框架技術摘要</div>
+        <div>
+          <!-- 15min -->
+          <div style="margin-bottom:8px;">
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+              <span class="info">15min（可靠性30%）</span>
+              <span class="bull">金叉 DIF+208.62</span>
+            </div>
+            <div class="ema-below">
+              <span style="color:var(--muted);">Spot vs EMA200:</span> $60,226 vs $60,632 <span class="bear">▼</span>
+            </div>
+            <div class="ema-above" style="margin-top:2px;">
+              <span style="color:var(--muted);">Spot vs EMA30:</span> $60,226 vs $59,988 <span class="bull">▲</span>
+            </div>
+          </div>
+          <!-- 4h -->
+          <div style="margin-bottom:8px;">
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+              <span class="info">4h（可靠性62%）</span>
+              <span class="bear">死叉 DIF-915.68</span>
+            </div>
+            <div class="ema-below">
+              <span style="color:var(--muted);">Spot vs EMA5:</span> $60,226 vs $60,215 ≈ <span class="neutral">貼合</span>
+            </div>
+            <div class="ema-below" style="margin-top:2px;">
+              <span style="color:var(--muted);">所有EMA:</span> EMA5~EMA200全在$60,215~$66,506 <span class="bear">▼壓頂</span>
+            </div>
+          </div>
+          <!-- 1D -->
+          <div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+              <span class="info">1D（可靠性70%）</span>
+              <span class="neutral">金叉(0.5x) DIF-2271</span>
+            </div>
+            <div class="ema-below">
+              <span style="color:var(--muted);">Spot vs EMA5:</span> $60,226 vs $61,215 <span class="bear">▼</span>
+            </div>
+            <div class="ema-below" style="margin-top:2px;">
+              <span style="color:var(--muted);">EMA200:</span> $77,260（距今-28%，強空頭中期趨勢）
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🔮 新週期情境概率（3JUL26）</div>
+        <div class="prob-bar-container">
+          <div class="prob-label">
+            <span>情境A：反彈 >$62,000</span>
+            <span class="bull">20%</span>
+          </div>
+          <div class="prob-bar"><div class="prob-fill fill-green" style="width:20%"></div></div>
+        </div>
+        <div class="prob-bar-container">
+          <div class="prob-label">
+            <span>情境B：核心區間 $59k-$62k</span>
+            <span class="neutral">45%</span>
+          </div>
+          <div class="prob-bar"><div class="prob-fill fill-yellow" style="width:45%"></div></div>
+        </div>
+        <div class="prob-bar-container">
+          <div class="prob-label">
+            <span>情境C：Put Wall測試 $56k-$59k</span>
+            <span class="bear">25%</span>
+          </div>
+          <div class="prob-bar"><div class="prob-fill fill-red" style="width:25%"></div></div>
+        </div>
+        <div class="prob-bar-container">
+          <div class="prob-label">
+            <span>情境D：系統性下跌 &lt;$56,000</span>
+            <span class="bear">10%</span>
+          </div>
+          <div class="prob-bar"><div class="prob-fill fill-red" style="width:10%"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- TAB: COLLISION -->
+<!-- ============================================================ -->
+<div id="tab-collision" class="tab-content">
+  <div class="alert alert-info">
+    <span class="alert-icon">⚔️</span>
+    <span>S22 對抗性碰撞 — 4層 × 雙方辯論 → Oracle裁決。首次重複論點時終止。</span>
+  </div>
+
+  <!-- Layer 1 -->
+  <div class="collision-layer">
+    <div class="layer-header">
+      <div class="layer-title">Layer 1｜宏觀 GBM + 資金費率層</div>
+      <div class="layer-verdict bear">裁決：BEAR 0.60 / BULL 0.40</div>
+    </div>
+    <div class="layer-body">
+      <div class="arg-row">
+        <div class="arg-tag bull-tag">BULL 1</div>
+        <div class="arg-text">FR穿越0%（-0.00669% → +0.00444%）= 多空成本方向逆轉。空頭現在付費給多頭。這是硬性觸發信號，歷史上此事件後48h反彈概率高。</div>
+      </div>
+      <div class="arg-row">
+        <div class="arg-tag bear-tag">BEAR 1</div>
+        <div class="arg-text">FR轉正同時L/S從2.287→2.044大幅下降。若是空頭平倉驅動，L/S應該上升（空頭減少）。L/S反而下降 = 多頭帳戶數減少，矛盾信號。FR轉正可能是「多頭被迫接盤」，非真實信念。</div>
+      </div>
+      <div class="arg-row">
+        <div class="arg-tag bull-tag">BULL 2</div>
+        <div class="arg-text">Spot從$68,350跌至$58,030低點後反彈至$60,226，V形底部，跌幅超過14%的快速回調通常意味著超賣反彈。1D MACD形成金叉（雖0.5x）。</div>
+      </div>
+      <div class="arg-row">
+        <div class="arg-tag bear-tag">BEAR 2</div>
+        <div class="arg-text">OI增加+1.75萬（+19.6%）與L/S下降同時發生 = 新空倉大量建立。這不是「空頭退場」，而是「新空頭登場」。大戶在下跌中繼續做空，信念堅定。4h MACD死叉加速（DIF=-915，遠超DEA=-865），能量結構惡化。</div>
+      </div>
+      <div class="arg-row">
+        <div class="arg-tag bull-tag">BULL 3</div>
+        <div class="arg-text">24h低點$58,030接近3JUL26的最大Put Wall（$58-59k各有900+張），造市商在此Gamma對沖形成動態支撐。底部測試完成。</div>
+      </div>
+      <div class="arg-row">
+        <div class="arg-tag bear-tag">BEAR 3</div>
+        <div class="arg-text">4h所有EMA全部壓頂（EMA5=$60,215、EMA10=$60,492、EMA30=$61,752、EMA200=$66,506），Spot在EMA矩陣下方。歷史上，Spot在EMA200下方且死叉延續時，反彈是賣出機會而非做多信號。</div>
+      </div>
+      <hr>
+      <div style="font-size:10px;color:var(--muted);">
+        裁決理由：FR轉正給Bull有效加分，但OI+L/S矛盾信號（Rule#15）壓制行為信號權重。4h MACD死叉加速是最可靠的中期方向指標（可靠性62%）。BEAR小勝。
+      </div>
+    </div>
+  </div>
+
+  <!-- Layer 2 -->
+  <div class="collision-layer">
+    <div class="layer-header">
+      <div class="layer-title">Layer 2｜GEX + 期權結構層</div>
+      <div class="layer-verdict neutral">裁決：BULL 0.50 / BEAR 0.50（中性）</div>
+    </div>
+    <div class="layer-body">
+      <div class="arg-row">
+        <div class="arg-tag bull-tag">BULL 1</div>
+        <div class="arg-text">31JUL26 $60k Put Wall = 1,774張（最大），25SEP26 $60k Put OI = 4,182張（三期序列最大）。Rule#16：三期共振Pin——$60k是強力引力中心，造市商在此下方Gamma對沖形成動態支撐。</div>
+      </div>
+      <div class="arg-row">
+        <div class="arg-tag bear-tag">BEAR 1</div>
+        <div class="arg-text">3JUL26（本週結算）最大Put Wall在$59,000（1,147張），Spot在其上方僅$1,226。若跌破$59k，3JUL26造市商被迫放大做空（NEG Regime）。本週的Gamma結構是「鄰近危險」，非「安全支撐」。</div>
+      </div>
+      <div class="arg-row">
+        <div class="arg-tag bull-tag">BULL 2</div>
+        <div class="arg-text">3JUL26 ATM區間（$58k-$62k）Call和Put Gamma相近，造市商在此區間呈穩定器（POS Regime）。$60k附近Call OI 748張 vs Put OI 369張，Call主導，輕微正GEX。</div>
+      </div>
+      <div class="arg-row">
+        <div class="arg-tag bear-tag">BEAR 2</div>
+        <div class="arg-text">3JUL26 Call Wall：$64k有1,064張Call，$65k有1,841張Call（最大），上方阻力厚重。即使反彈，$62-65k是強壓制帶。25SEP26 PCR=0.790，遠端樂觀只是「長期持倉者的希望」，對本週週選無直接定價影響。</div>
+      </div>
+      <hr>
+      <div style="font-size:10px;color:var(--muted);">
+        裁決理由：$60k是三期共振磁吸（Rule#16，Bull加分），但本週3JUL26 $59k Put Wall是即時危險地雷（Bear加分）。上下力量均衡，中性裁決。
+      </div>
+    </div>
+  </div>
+
+  <!-- Layer 3 -->
+  <div class="collision-layer">
+    <div class="layer-header">
+      <div class="layer-title">Layer 3｜技術結構層（K線三框架）</div>
+      <div class="layer-verdict bear">裁決：BEAR 0.65 / BULL 0.35</div>
+    </div>
+    <div class="layer-body">
+      <div class="arg-row">
+        <div class="arg-tag bull-tag">BULL 1</div>
+        <div class="arg-text">15min MACD金叉（DIF=208.62, DEA=201.84），DIF在正值域，信號有效性1.0x，壽命要求≥6.5h已滿足。Spot在15min EMA30（$59,988）上方，短期動量轉正。</div>
+      </div>
+      <div class="arg-row">
+        <div class="arg-tag bear-tag">BEAR 1</div>
+        <div class="arg-text">4h MACD死叉（DIF=-915.68 < DEA=-865.10），且DIF絕對值 > DEA絕對值，表明動量在加速惡化而非收斂。4h可靠性62%，遠高於15min的30%。4h EMA全體壓頂，短期金叉在中期死叉結構中是「噪音」。</div>
+      </div>
+      <div class="arg-row">
+        <div class="arg-tag bull-tag">BULL 2</div>
+        <div class="arg-text">1D MACD金叉（DIF=-2271.48 > DEA=-2285.68，MACD=28.39）。雖然在負值域（0.5x信號），但日線從死叉轉金叉代表最大跌勢已過，趨勢衰竭信號。</div>
+      </div>
+      <div class="arg-row">
+        <div class="arg-tag bear-tag">BEAR 2</div>
+        <div class="arg-text">1D金叉在負DIF域（Rule#2 supplement），信號強度0.5x，不構成趨勢逆轉。1D EMA200在$77,260，距今-28%，中期熊市結構未改變。歷史上，1D EMA200下方的金叉通常是「熊市反彈」。</div>
+      </div>
+      <div class="arg-row">
+        <div class="arg-tag bear-tag">BEAR 3</div>
+        <div class="arg-text">1D EMA結構全線空頭：EMA5=$61,215, EMA10=$62,242, EMA30=$65,451, EMA200=$77,260，Spot（$60,226）在所有均線下方，均線多頭排列已完全破壞。</div>
+      </div>
+      <hr>
+      <div style="font-size:10px;color:var(--muted);">
+        裁決理由：中期（4h+1D）技術結構全面空頭。15min金叉是噪音（可靠性30%），1D金叉是0.5x。Bear大勝。
+      </div>
+    </div>
+  </div>
+
+  <!-- Layer 4 -->
+  <div class="collision-layer">
+    <div class="layer-header">
+      <div class="layer-title">Layer 4｜貝葉斯 + 行為週期層</div>
+      <div class="layer-verdict bear">裁決：BEAR 0.60 / BULL 0.40</div>
+    </div>
+    <div class="layer-body">
+      <div class="arg-row">
+        <div class="arg-tag bull-tag">BULL 1</div>
+        <div class="arg-text">Spot已從$68,350跌至$58,030，累計跌幅14.5%（>1σ）。貝葉斯先驗：BTC歷史上跌超1σ後的7天反彈概率>60%。$58-60k區間是1D Stoch RSI極度超賣區域。</div>
+      </div>
+      <div class="arg-row">
+        <div class="arg-tag bear-tag">BEAR 1</div>
+        <div class="arg-text">新週期（26JUN26後）重置。S21的82%情境B已失效，需重新建立貝葉斯先驗。當前宏觀：BTC在$60k面臨強壓力（原本2025年底的歷史高點回撤），機構避險情緒高。OI+19.6%的新空頭不是「看跌後平倉」，是「看跌繼續建倉」。</div>
+      </div>
+      <div class="arg-row">
+        <div class="arg-tag bull-tag">BULL 2</div>
+        <div class="arg-text">25SEP26 Call Wall集中在$78-90k（$78k有3,469張，$80k有3,277張，$90k有3,084張），機構在遠端大量持有Call。這代表大資金對Q3有明確多頭部位。BlackRock持有的IBIT在$60k水位仍有淨多頭敞口。</div>
+      </div>
+      <div class="arg-row">
+        <div class="arg-tag bear-tag">BEAR 2</div>
+        <div class="arg-text">遠端Call是「已建立的對沖」，不代表短期催化劑。短期情緒主導：L/S=2.044距離整數觸發（2.0）僅0.044，若L/S跌破2.0，觸發系統性空頭信號（Rule#5風格觸發）。本週3JUL26結算前，空頭繼續壓制。</div>
+      </div>
+      <hr>
+      <div style="font-size:10px;color:var(--muted);">
+        裁決理由：貝葉斯超賣反彈概率給Bull加分，但新週期重置+新空頭入場壓制。遠端Call不是近期觸發劑。Bear小勝。
+      </div>
+    </div>
+  </div>
+
+  <!-- Oracle Synthesis -->
+  <div class="card" style="border-color:var(--accent);">
+    <div class="card-title" style="color:var(--accent);">⚡ ORACLE 最終裁決（S22）</div>
+    <div class="grid-4">
+      <div class="kpi">
+        <div class="kpi-val bear">BEAR 0.60</div>
+        <div class="kpi-lbl">Layer 1</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-val neutral">中性 0.50</div>
+        <div class="kpi-lbl">Layer 2</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-val bear">BEAR 0.65</div>
+        <div class="kpi-lbl">Layer 3</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-val bear">BEAR 0.60</div>
+        <div class="kpi-lbl">Layer 4</div>
+      </div>
+    </div>
+    <hr>
+    <div style="text-align:center;font-size:13px;padding:8px;">
+      <span class="bear" style="font-size:16px;font-weight:bold;">綜合裁決：空頭偏向 (BEAR 0.588)</span><br>
+      <span style="font-size:10px;color:var(--muted);">3JUL26 UFT結算預測：Median $59,697 | Mode $60,000 | EMH $60,226</span>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- TAB: GEX -->
+<!-- ============================================================ -->
+<div id="tab-gex" class="tab-content">
+  <div class="grid-2">
+    <div>
+      <div class="card" style="margin-bottom:12px;">
+        <div class="card-title">📊 3JUL26 期權結構（週選，T=7天）</div>
+        <table class="strike-table">
+          <thead>
+            <tr>
+              <th>行權價</th><th>Call Vol</th><th>Put Vol</th><th>PCR</th><th>備註</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="strike-put-wall"><td>$58,000</td><td>111</td><td>916</td><td style="color:var(--red)">8.25</td><td style="color:var(--red)">PUT WALL</td></tr>
+            <tr class="strike-put-wall"><td>$59,000</td><td>203</td><td>1,147</td><td style="color:var(--red)">5.64</td><td style="color:var(--red)">MAX PUT</td></tr>
+            <tr class="strike-atm"><td>$60,000</td><td>748</td><td>369</td><td style="color:var(--green)">0.49</td><td style="color:var(--yellow)">≈ATM★</td></tr>
+            <tr class="strike-atm"><td>$61,000</td><td>135</td><td>69</td><td style="color:var(--green)">0.51</td><td class="info">ATM</td></tr>
+            <tr><td>$62,000</td><td>390</td><td>258</td><td>0.66</td><td></td></tr>
+            <tr class="strike-call-wall"><td>$63,000</td><td>452</td><td>12</td><td style="color:var(--green)">0.03</td><td style="color:var(--green)">Call Zone</td></tr>
+            <tr class="strike-call-wall"><td>$64,000</td><td>1,064</td><td>12</td><td style="color:var(--green)">0.01</td><td style="color:var(--green)">Call Wall</td></tr>
+            <tr class="strike-call-wall"><td>$65,000</td><td>1,841</td><td>5</td><td style="color:var(--green)">0.003</td><td style="color:var(--green)">MAX CALL</td></tr>
+            <tr><td>$67,000</td><td>470</td><td>3</td><td>0.007</td><td></td></tr>
+            <tr><td>$68,000</td><td>283</td><td>2</td><td>0.006</td><td></td></tr>
+            <tr><td>$80,000</td><td>142</td><td>0.1</td><td>0.001</td><td></td></tr>
+          </tbody>
+        </table>
+        <div style="margin-top:8px;font-size:9px;color:var(--muted);">
+          全局PCR=0.676（中性偏Call）｜ATM PCR($58-62k)=1.738（局部防禦）<br>
+          Gamma Flip估算：~$60,500（Call＞Put GEX轉換點）
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📊 31JUL26 關鍵結構（T=35天）</div>
+        <table class="strike-table">
+          <thead>
+            <tr><th>行權價</th><th>Call OI</th><th>Put OI</th><th>特徵</th></tr>
+          </thead>
+          <tbody>
+            <tr class="strike-put-wall"><td>$50,000</td><td>—</td><td>2,749</td><td style="color:var(--red)">強Put底</td></tr>
+            <tr class="strike-put-wall"><td>$56,000</td><td>—</td><td>1,345</td><td style="color:var(--red)">Put Wall</td></tr>
+            <tr class="strike-put-wall"><td>$60,000</td><td>311</td><td>1,774</td><td style="color:var(--red)">最大Put★</td></tr>
+            <tr class="strike-atm"><td>$61,000</td><td>—</td><td>412</td><td class="neutral">ATM支撐</td></tr>
+            <tr class="strike-call-wall"><td>$70,000</td><td>2,303</td><td>886</td><td style="color:var(--green)">Call Zone</td></tr>
+            <tr class="strike-call-wall"><td>$75,000</td><td>3,171</td><td>228</td><td style="color:var(--green)">Call Wall</td></tr>
+            <tr class="strike-call-wall"><td>$80,000</td><td>7,007</td><td>397</td><td style="color:var(--green)">MAX CALL★</td></tr>
+            <tr><td>$85,000</td><td>1,271</td><td>22</td><td></td></tr>
+          </tbody>
+        </table>
+        <div style="margin-top:6px;font-size:9px;color:var(--muted);">
+          31JUL26 PCR(OI)=0.567｜Call Wall在$80k（7,007張）為序列最大Call Wall
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card" style="margin-bottom:12px;">
+        <div class="card-title">📊 25SEP26 期權結構（T=91天）</div>
+        <table class="strike-table">
+          <thead>
+            <tr><th>行權價</th><th>Call OI</th><th>Put OI</th><th>特徵</th></tr>
+          </thead>
+          <tbody>
+            <tr class="strike-put-wall"><td>$50,000</td><td>31</td><td>3,276</td><td style="color:var(--red)">尾部保護</td></tr>
+            <tr class="strike-put-wall"><td>$55,000</td><td>84</td><td>2,933</td><td style="color:var(--red)">Put Wall</td></tr>
+            <tr class="strike-put-wall"><td>$60,000</td><td>396</td><td>4,182</td><td style="color:var(--red)">最大Put★★</td></tr>
+            <tr class="strike-atm"><td>$62,000</td><td>555</td><td>866</td><td class="info">ATM附近</td></tr>
+            <tr><td>$70,000</td><td>1,579</td><td>1,523</td><td class="neutral">均衡</td></tr>
+            <tr><td>$75,000</td><td>2,171</td><td>2,962</td><td class="neutral">機構對沖</td></tr>
+            <tr class="strike-call-wall"><td>$78,000</td><td>3,469</td><td>636</td><td style="color:var(--green)">Call Wall</td></tr>
+            <tr class="strike-call-wall"><td>$80,000</td><td>3,277</td><td>618</td><td style="color:var(--green)">Call集中</td></tr>
+            <tr class="strike-call-wall"><td>$90,000</td><td>3,084</td><td>593</td><td style="color:var(--green)">Call Wall</td></tr>
+            <tr class="strike-call-wall"><td>$100,000</td><td>3,123</td><td>272</td><td style="color:var(--green)">遠Call★</td></tr>
+          </tbody>
+        </table>
+        <div style="margin-top:6px;font-size:9px;color:var(--muted);">
+          25SEP26 PCR(OI)=0.790｜機構在Q3持有大量$78-100k Call，表明長期看多
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🎯 跨期GEX結構總圖</div>
+        <div style="font-size:10px;line-height:2;">
+          <div style="padding:6px;background:rgba(239,68,68,0.08);border-radius:4px;margin-bottom:6px;">
+            <span class="bear">近端恐慌帶（3JUL26）</span><br>
+            $58k-59k：Put Wall密集 → 若跌破，放大下跌<br>
+            $60k：Call > Put，GEX正，輕微穩定<br>
+            $64-65k：Call Wall，上方阻力
+          </div>
+          <div style="padding:6px;background:rgba(245,158,11,0.08);border-radius:4px;margin-bottom:6px;">
+            <span class="neutral">中期結構（31JUL26）</span><br>
+            $60k Put Wall(1774張) → 強力磁吸<br>
+            $80k Call Wall(7007張) → 中期目標上限
+          </div>
+          <div style="padding:6px;background:rgba(16,185,129,0.08);border-radius:4px;">
+            <span class="bull">遠端機構倉位（25SEP26）</span><br>
+            $60k Put(4182張) → 底部確認<br>
+            $78-100k Call集中 → 機構Q3目標<br>
+            結構信息：機構不看空Q3，但在$60k保護下行
+          </div>
+        </div>
+        <div style="margin-top:8px;padding:8px;background:rgba(59,130,246,0.08);border-radius:4px;border:1px solid rgba(59,130,246,0.3);">
+          <div style="color:var(--accent);font-size:10px;font-weight:bold;margin-bottom:4px;">Rule#16 三期$60k共振Pin</div>
+          <div style="font-size:10px;">
+            3JUL26 + 31JUL26 + 25SEP26 三個到期日均將$60k設為最大Put OI水位。
+            這是市場用最大權益表達的「價格磁吸」。<br>
+            <span class="neutral">→ 短期中心：$60,000 ± 2,000</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- TAB: TECHNICAL -->
+<!-- ============================================================ -->
+<div id="tab-technical" class="tab-content">
+  <div class="grid-3">
+    <!-- 15min -->
+    <div class="card">
+      <div class="card-title" style="color:var(--cyan);">⏱ 15分鐘框架（可靠性30%）</div>
+      <div class="kpi" style="margin-bottom:8px;">
+        <div class="kpi-val bull">金叉 ✓</div>
+        <div class="kpi-lbl">MACD狀態（DIF正值域）</div>
+      </div>
+      <div style="font-size:10px;">
+        <div class="ema-below" style="margin-bottom:3px;padding:4px 6px;border-radius:3px;">
+          EMA5 = $60,305 <span class="bear">▼ Spot下方 $79</span>
+        </div>
+        <div class="ema-below" style="margin-bottom:3px;padding:4px 6px;border-radius:3px;">
+          EMA10 = $60,267 <span class="bear">▼ Spot下方 $41</span>
+        </div>
+        <div class="ema-above" style="margin-bottom:3px;padding:4px 6px;border-radius:3px;">
+          EMA30 = $59,988 <span class="bull">▲ Spot上方 $238</span>
+        </div>
+        <div class="ema-below" style="margin-bottom:3px;padding:4px 6px;border-radius:3px;">
+          EMA200 = $60,632 <span class="bear">▼ Spot下方 $406</span>
+        </div>
+        <hr>
+        <div>DIF = <span class="bull">+208.62</span></div>
+        <div>DEA = <span class="bull">+201.84</span></div>
+        <div>MACD = <span class="bull">+13.57 ↑</span></div>
+        <hr>
+        <div style="margin-top:4px;padding:4px;background:rgba(16,185,129,0.08);border-radius:3px;">
+          信號有效性：<span class="bull">1.0x（DIF正值域）</span><br>
+          壽命要求：≥6.5h ✓<br>
+          解讀：短期動量轉正，但在4h死叉框架內是噪音
+        </div>
+      </div>
+    </div>
+
+    <!-- 4h -->
+    <div class="card">
+      <div class="card-title" style="color:var(--yellow);">⏱ 4小時框架（可靠性62%）</div>
+      <div class="kpi" style="margin-bottom:8px;">
+        <div class="kpi-val bear">死叉 ✗</div>
+        <div class="kpi-lbl">MACD狀態（加速惡化）</div>
+      </div>
+      <div style="font-size:10px;">
+        <div class="ema-above" style="margin-bottom:3px;padding:4px 6px;border-radius:3px;">
+          EMA5 = $60,215 <span class="neutral">≈貼合 (-11)</span>
+        </div>
+        <div class="ema-below" style="margin-bottom:3px;padding:4px 6px;border-radius:3px;">
+          EMA10 = $60,492 <span class="bear">▼ Spot下方 $266</span>
+        </div>
+        <div class="ema-below" style="margin-bottom:3px;padding:4px 6px;border-radius:3px;">
+          EMA30 = $61,752 <span class="bear">▼ Spot下方 $1,526</span>
+        </div>
+        <div class="ema-below" style="margin-bottom:3px;padding:4px 6px;border-radius:3px;">
+          EMA200 = $66,506 <span class="bear">▼ Spot下方 $6,280</span>
+        </div>
+        <hr>
+        <div>DIF = <span class="bear">-915.68</span></div>
+        <div>DEA = <span class="bear">-865.10</span></div>
+        <div>MACD = <span class="bear">-101.16</span></div>
+        <hr>
+        <div style="margin-top:4px;padding:4px;background:rgba(239,68,68,0.08);border-radius:3px;">
+          信號有效性：<span class="bear">死叉 + DIF加速偏離</span><br>
+          壽命要求：≥104h<br>
+          <span class="bear">注意：DIF(-915) > DEA(-865) 絕對值 = 動量加速惡化</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 1D -->
+    <div class="card">
+      <div class="card-title" style="color:var(--orange);">⏱ 日線框架（可靠性70%）</div>
+      <div class="kpi" style="margin-bottom:8px;">
+        <div class="kpi-val neutral">金叉(0.5x)</div>
+        <div class="kpi-lbl">MACD狀態（負值域金叉）</div>
+      </div>
+      <div style="font-size:10px;">
+        <div class="ema-below" style="margin-bottom:3px;padding:4px 6px;border-radius:3px;">
+          EMA5 = $61,215 <span class="bear">▼ Spot下方 $989</span>
+        </div>
+        <div class="ema-below" style="margin-bottom:3px;padding:4px 6px;border-radius:3px;">
+          EMA10 = $62,242 <span class="bear">▼ Spot下方 $2,016</span>
+        </div>
+        <div class="ema-below" style="margin-bottom:3px;padding:4px 6px;border-radius:3px;">
+          EMA30 = $65,451 <span class="bear">▼ Spot下方 $5,225</span>
+        </div>
+        <div class="ema-below" style="margin-bottom:3px;padding:4px 6px;border-radius:3px;">
+          EMA200 = $77,260 <span class="bear">▼ Spot下方 $17,034</span>
+        </div>
+        <hr>
+        <div>DIF = <span class="bear">-2,271.48</span></div>
+        <div>DEA = <span class="bear">-2,285.68</span></div>
+        <div>MACD = <span class="bull">+28.39 ↑</span></div>
+        <hr>
+        <div style="margin-top:4px;padding:4px;background:rgba(245,158,11,0.08);border-radius:3px;">
+          <span class="neutral">Rule#2：DIF在負值域金叉 = 0.5x信號強度</span><br>
+          壽命要求：≥26天<br>
+          解讀：最大跌勢衰竭，但非趨勢逆轉。EMA200(-28%)確認中期熊市。
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- EMA Big Picture -->
+  <div class="card" style="margin-top:12px;">
+    <div class="card-title">🗺 EMA大圖：所有時框全面空頭排列</div>
+    <div style="font-size:10px;line-height:2;">
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;text-align:center;margin-bottom:8px;">
+        <div style="padding:8px;background:rgba(239,68,68,0.15);border-radius:4px;">
+          <div class="bear" style="font-weight:bold;">EMA200(1D)</div>
+          <div>$77,260</div>
+          <div class="bear">Spot -28%</div>
+        </div>
+        <div style="padding:8px;background:rgba(239,68,68,0.12);border-radius:4px;">
+          <div class="bear" style="font-weight:bold;">EMA200(4h)</div>
+          <div>$66,506</div>
+          <div class="bear">Spot -10%</div>
+        </div>
+        <div style="padding:8px;background:rgba(239,68,68,0.10);border-radius:4px;">
+          <div class="bear" style="font-weight:bold;">EMA30(1D)</div>
+          <div>$65,451</div>
+          <div class="bear">Spot -8%</div>
+        </div>
+        <div style="padding:8px;background:rgba(239,68,68,0.08);border-radius:4px;">
+          <div class="bear" style="font-weight:bold;">EMA10(1D)</div>
+          <div>$62,242</div>
+          <div class="bear">Spot -3.3%</div>
+        </div>
+        <div style="padding:8px;background:rgba(245,158,11,0.08);border-radius:4px;">
+          <div class="neutral" style="font-weight:bold;">EMA5(4h)</div>
+          <div>$60,215</div>
+          <div class="neutral">≈貼合</div>
+        </div>
+      </div>
+      <div style="padding:8px;background:rgba(239,68,68,0.08);border-radius:4px;border-left:3px solid var(--red);">
+        <strong class="bear">結論：</strong>Spot（$60,226）在所有重要均線下方。只有4h EMA5幾乎持平。
+        恢復健康的多頭趨勢需要：① 突破4h EMA10（$60,492）② 站穩4h EMA30（$61,752）③ 最終收復4h EMA200（$66,506）。
+        當前距離健康多頭區域仍有 <span class="bear">$1,500~$6,000</span> 的差距。
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- TAB: SETTLEMENT -->
+<!-- ============================================================ -->
+<div id="tab-settlement" class="tab-content">
+  <div class="grid-2">
+    <div>
+      <!-- 3JUL26 -->
+      <div class="settlement-box" style="margin-bottom:12px;">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">3JUL26 | T=7天 | σ=$4,337</div>
+        <div class="settlement-main">$59,697</div>
+        <div style="font-size:12px;color:var(--muted);">UFT Median</div>
+        <div class="settlement-range">Mode (GEX Pin) : $60,000 &nbsp;|&nbsp; EMH : $60,226</div>
+        <hr style="margin:10px 0;">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;font-size:10px;">
+          <div style="padding:6px;background:rgba(16,185,129,0.1);border-radius:4px;">
+            <div class="bull" style="font-weight:bold;">20%</div>
+            <div style="color:var(--muted);">&gt;$62,000</div>
+          </div>
+          <div style="padding:6px;background:rgba(245,158,11,0.1);border-radius:4px;">
+            <div class="neutral" style="font-weight:bold;">45%</div>
+            <div style="color:var(--muted);">$59k-62k</div>
+          </div>
+          <div style="padding:6px;background:rgba(239,68,68,0.1);border-radius:4px;">
+            <div class="bear" style="font-weight:bold;">25%</div>
+            <div style="color:var(--muted);">$56k-59k</div>
+          </div>
+          <div style="padding:6px;background:rgba(239,68,68,0.15);border-radius:4px;">
+            <div class="bear" style="font-weight:bold;">10%</div>
+            <div style="color:var(--muted);">&lt;$56,000</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 31JUL26 -->
+      <div class="card">
+        <div class="card-title">📅 31JUL26 方向預測（T=35天）</div>
+        <div style="font-size:10px;line-height:2;">
+          <div>σ(31JUL26) ≈ <span class="info">$9,698</span></div>
+          <div>1σ範圍：<span class="bear">$50,528</span> ~ <span class="bull">$69,924</span></div>
+          <hr>
+          <div class="prob-bar-container">
+            <div class="prob-label"><span>反彈至$65-70k</span><span class="bull">30%</span></div>
+            <div class="prob-bar"><div class="prob-fill fill-green" style="width:30%"></div></div>
+          </div>
+          <div class="prob-bar-container">
+            <div class="prob-label"><span>橫盤$56-65k</span><span class="neutral">50%</span></div>
+            <div class="prob-bar"><div class="prob-fill fill-yellow" style="width:50%"></div></div>
+          </div>
+          <div class="prob-bar-container">
+            <div class="prob-label"><span>繼續下跌&lt;$56k</span><span class="bear">20%</span></div>
+            <div class="prob-bar"><div class="prob-fill fill-red" style="width:20%"></div></div>
+          </div>
+          <div style="margin-top:6px;font-size:9px;color:var(--muted);">
+            31JUL26 GEX Pin候選：$60k（最大Put Wall 1774張）<br>
+            Call Wall：$80k（7007張）— 上限明確
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <!-- UFT Equation -->
+      <div class="card" style="margin-bottom:12px;">
+        <div class="card-title">⚗️ UFT v2.0 統一場方程（3JUL26）</div>
+        <div style="font-size:10px;line-height:2;">
+          <div style="padding:8px;background:rgba(59,130,246,0.05);border-radius:4px;font-family:monospace;margin-bottom:8px;">
+            P(結算在X) = <br>
+            &nbsp;&nbsp;<span style="color:var(--accent);">0.40</span>×GBM(<span class="neutral">$60,009</span>) +<br>
+            &nbsp;&nbsp;<span style="color:var(--green);">0.10</span>×GEX(<span class="neutral">$60,000</span>) +<br>
+            &nbsp;&nbsp;<span style="color:var(--yellow);">0.28</span>×Behavior(<span class="bear">$58,925</span>) +<br>
+            &nbsp;&nbsp;<span style="color:var(--purple);">0.12</span>×Bayesian(<span class="neutral">$59,950</span>) +<br>
+            &nbsp;&nbsp;<span style="color:var(--cyan);">0.10</span>×TimeDecay(<span class="neutral">$60,000</span>)
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">
+            <div>GBM中心：<span class="neutral">$60,009</span></div>
+            <div>GBM偏移：-0.5σ×0.1</div>
+            <div>GEX Pin：<span class="neutral">$60,000</span></div>
+            <div>三期共振</div>
+            <div>BehaviorSignal：<span class="bear">$58,925</span></div>
+            <div>Rule#15減半後</div>
+            <div>Bayesian：<span class="neutral">$59,950</span></div>
+            <div>新週期重置</div>
+            <div>TimeDecay：<span class="neutral">$60,000</span></div>
+            <div>Max Gamma Pin</div>
+          </div>
+          <hr>
+          <div style="text-align:center;font-size:14px;font-weight:bold;">
+            UFT結算中心 = <span class="neutral">$59,697</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Triggers -->
+      <div class="card">
+        <div class="card-title">🔔 觸發條件更新（S22後）</div>
+        <div style="font-size:10px;line-height:1.8;">
+          <div style="padding:4px 8px;background:rgba(16,185,129,0.08);border-radius:3px;margin-bottom:4px;">
+            <span class="bull">▲ 上觸發（重新評估）</span><br>
+            · Spot > $62,000（突破3JUL26 Call牆）<br>
+            · FR > +0.01%（真實多頭入場）<br>
+            · L/S 返回 > 2.2（多頭信念恢復）
+          </div>
+          <div style="padding:4px 8px;background:rgba(239,68,68,0.08);border-radius:3px;margin-bottom:4px;">
+            <span class="bear">▼ 下觸發（立即深度碰撞）</span><br>
+            · Spot &lt; $59,000（3JUL26最大Put Wall）<br>
+            · Spot &lt; $58,030（24h低點，確認下跌趨勢）<br>
+            · L/S &lt; 2.0（整數觸發）<br>
+            · OI繼續增加 > +5,000張（新空頭加倉）
+          </div>
+          <div style="padding:4px 8px;background:rgba(245,158,11,0.08);border-radius:3px;">
+            <span class="neutral">📅 時間強制觸發</span><br>
+            · T=24h（2026-06-27 16:38）：必須更新<br>
+            · T=6h（2026-06-27 10:38）：監控<br>
+            · 3JUL26結算前24h：最終預測收斂
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- TAB: ALPHA -->
+<!-- ============================================================ -->
+<div id="tab-alpha" class="tab-content">
+  
+  <div class="alert alert-warning">
+    <span class="alert-icon">⚠️</span>
+    <span>以下Alpha分析代表機構級別思考框架，非投資建議。所有交易均含市場風險。</span>
+  </div>
+
+  <!-- Alpha Synthesis -->
+  <div class="alpha-box">
+    <div class="alpha-title">💡 Alpha引擎：系統化交易思路（S22）</div>
+    <div class="alpha-body">
+      <strong style="color:var(--cyan);">核心洞察（你身為機構創辦人的視角）：</strong><br><br>
+      <strong>1. 週期切換即是Alpha機會。</strong>26JUN26結算完成，新週期從零開始。機構
+      在$60k設置了三期最大Put OI（3JUL 369張 + 31JUL 1,774張 + 25SEP 4,182張），
+      這不是「看跌」，而是「在$60k布局底部保護的同時，用Call對沖Q3上行」。
+      BlackRock/機構的完整對沖結構顯示：他們不賣，他們在保護倉位等反彈。<br><br>
+      <strong>2. OI+L/S矛盾是「洗盤信號」還是「真空頭」？</strong>
+      OI+19.6%、L/S-10.6%，若是真空頭，25SEP26 Call Wall不會在$78-100k集中（機構
+      不會一邊大量做空，一邊在遠期Call持有長倉）。更可能的解讀：<br>
+      → <strong style="color:var(--yellow);">期現套利/Delta對沖</strong>：機構在永續空頭+現貨多頭，製造FR轉正的同時L/S下降。<br>
+      → <strong style="color:var(--yellow);">清算後的新建倉</strong>：散戶多頭被清算，機構在低位新建倉，表現為OI增加+L/S下降。<br><br>
+      <strong>3. 最強Alpha信號：$58,030低點的成立</strong><br>
+      24h低點 = $58,030，恰好在3JUL26最大Put Wall（$58k-59k帶）。
+      造市商Gamma對沖在此形成「機械性底部」。若此低點不被跌破，V形反彈概率高。
+      <br><br>
+      <strong>4. 貝萊德視角：</strong>25SEP26 $100k Call有3,123張OI，說明機構不排除Q3
+      重返$100k。短期恐慌 ≠ 中期方向。在$58-60k區間是機構的「靜默積累區」。
+    </div>
+  </div>
+
+  <!-- Trade Setups -->
+  <div class="grid-2">
+    <div class="trade-setup">
+      <div class="trade-header">
+        <div class="trade-title">策略A：$60k Put Wall防禦 + 上行期權</div>
+        <span class="bull" style="font-size:10px;">機率較高</span>
+      </div>
+      <div class="trade-body">
+        <div style="font-size:10px;color:var(--muted);margin-bottom:8px;">
+          核心邏輯：三期$60k共振Pin + $58,030機械底部確立 → 短期支撐>阻力
+        </div>
+        <div class="trade-row"><span class="trade-key">部位方向</span><span class="trade-val bull">多頭/看漲</span></div>
+        <div class="trade-row"><span class="trade-key">入場條件</span><span class="trade-val">確認守住$59,000</span></div>
+        <div class="trade-row"><span class="trade-key">入場區間</span><span class="trade-val">$59,500 - $60,500</span></div>
+        <div class="trade-row"><span class="trade-key">期權工具</span><span class="trade-val">3JUL26 $61k/$62k Call</span></div>
+        <div class="trade-row"><span class="trade-key">目標</span><span class="trade-val">$62,000（Call Wall下方）</span></div>
+        <div class="trade-row"><span class="trade-key">停損</span><span class="trade-val bear">$58,500（跌破$59k確認）</span></div>
+        <div class="trade-row"><span class="trade-key">風報比</span><span class="trade-val neutral">1:2.5（$1,500/＄3,500）</span></div>
+        <div class="trade-row"><span class="trade-key">倉位建議</span><span class="trade-val">2-3%（機構標準小試）</span></div>
+        <div style="margin-top:8px;font-size:9px;color:var(--muted);">
+          觸發監控：FR需維持正值 + L/S不跌破2.0 + 4h MACD出現收斂信號
+        </div>
+      </div>
+    </div>
+
+    <div class="trade-setup">
+      <div class="trade-header">
+        <div class="trade-title">策略B：空頭繼續 + Put Spread保護</div>
+        <span class="bear" style="font-size:10px;">趨勢延續</span>
+      </div>
+      <div class="trade-body">
+        <div style="font-size:10px;color:var(--muted);margin-bottom:8px;">
+          核心邏輯：4h死叉加速 + OI新空頭建倉 + L/S近2.0整數觸發線
+        </div>
+        <div class="trade-row"><span class="trade-key">部位方向</span><span class="trade-val bear">空頭/看跌</span></div>
+        <div class="trade-row"><span class="trade-key">入場條件</span><span class="trade-val">反彈至$61,500-$62,000</span></div>
+        <div class="trade-row"><span class="trade-key">期權工具</span><span class="trade-val">3JUL26 $59k/$56k Put Spread</span></div>
+        <div class="trade-row"><span class="trade-key">最大獲利</span><span class="trade-val">$3,000/Contract（$59k-$56k）</span></div>
+        <div class="trade-row"><span class="trade-key">最大損失</span><span class="trade-val bear">權利金（有限風險）</span></div>
+        <div class="trade-row"><span class="trade-key">目標1</span><span class="trade-val">$58,000（3JUL Put Wall）</span></div>
+        <div class="trade-row"><span class="trade-key">目標2</span><span class="trade-val">$56,000（延伸）</span></div>
+        <div class="trade-row"><span class="trade-key">失效條件</span><span class="trade-val">Spot站穩$62,000以上</span></div>
+        <div style="margin-top:8px;font-size:9px;color:var(--muted);">
+          信號確認：等待L/S跌破2.0 + FR重新轉負 + Spot跌破$59k
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="alpha-box" style="margin-top:12px;">
+    <div class="alpha-title">🏛 機構視角：為什麼這個結構是機會？</div>
+    <div class="alpha-body" style="font-size:11px;line-height:1.9;">
+      <strong style="color:var(--yellow);">【與BlackRock的對話框架】</strong><br>
+      從25SEP26期權數據看，機構（包含iShares IBIT）的持倉邏輯是：<br>
+      ① $55-60k：最大Put OI集中 → 這是「保險底線」，機構不希望BTC跌破這裡<br>
+      ② $78-100k：Call OI集中 → 這是Q3目標區間<br>
+      ③ 結構含義：現在在$60k是「填谷」的機會，不是末日<br><br>
+      <strong style="color:var(--cyan);">【MSTR大股東視角】</strong><br>
+      MSTR在$60k以下現金流壓力增大（按揭比率），但Saylor不會在$60k賣。
+      更可能：MSTR在$58-62k繼續加倉BTC（歷史模式一致）。
+      MSTR的購買力支撐是$58k-60k區間的「隱性多頭」。<br><br>
+      <strong style="color:var(--orange);">【結論】</strong><br>
+      短期（3JUL26前）：中性偏空，$59,697結算中位。<br>
+      中期（31JUL26）：$60k磁吸 → $65-70k反彈候選。<br>
+      長期（25SEP26）：機構目標$78-90k，Q3看多框架未破。<br>
+      <strong style="color:var(--yellow);">最佳策略：在$58-60k買進31JUL26 $65k Call，用$56k Put對沖尾部風險。</strong>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- TAB: RULES -->
+<!-- ============================================================ -->
+<div id="tab-rules" class="tab-content">
+  <div class="grid-2">
+    <div>
+      <div class="card-title" style="margin-bottom:8px;">📋 統一場論 v2.0 — 完整規則體系</div>
+      
+      <div class="rule-box"><span class="rule-num">R#1</span>Put Wall三態：OTM(Gamma≈0無影響) / ATM(最不穩定) / ITM(造市商淨買入=動態支撐)</div>
+      <div class="rule-box"><span class="rule-num">R#2</span>MACD信號壽命：15min≥6.5h / 4h≥104h / 1D≥26天。負值域金叉=0.5x信號強度。壽命不足=噪音。</div>
+      <div class="rule-box"><span class="rule-num">R#3</span>RSI篩選：機械超賣(RSI升+Spot跌)=×0.5 / 真實超賣(時間>1蠟燭+方向一致)=×1.0</div>
+      <div class="rule-box"><span class="rule-num">R#4</span>重複確認邊際遞減：N=1首次1.5-2x / N=2-3：1.1-1.2x / N=4-5：1.05x / N≥6：1.02x</div>
+      <div class="rule-box"><span class="rule-num">R#5</span>FR振蕩模式：空頭每8h週期補倉，振蕩下限越深=信念越堅。FR穿越0%=最重要觸發。</div>
+      <div class="rule-box"><span class="rule-num">R#6</span>GEX數據代表性：全幣種數據方向/結構有效。PCR需OI≥100張有統計意義。</div>
+      <div class="rule-box"><span class="rule-num">R#7</span>USDT LPI五級：$0.9999+(正常) / $0.999x(微壓) / $0.99x(緊張) / $0.97x(恐慌) / &lt;$0.97(危機)</div>
+      <div class="rule-box"><span class="rule-num">R#8</span>SS充分條件乘積法：P(SS)=P(FR負)×P(催化劑15%)×P(突破站穩)×P(時間)</div>
+      <div class="rule-box"><span class="rule-num">R#9</span>EMH邊界：點預測最佳=當前價。框架alpha在分布形狀+條件概率+風控。</div>
+      <div class="rule-box"><span class="rule-num">R#10</span>Regime框架：POS(Spot>GF)=造市商穩定器 / NEG(Spot&lt;GF)=造市商放大器，Layer嚴格分離。</div>
+    </div>
+    <div>
+      <div class="card-title" style="margin-bottom:8px;visibility:hidden;">-</div>
+      <div class="rule-box"><span class="rule-num">R#11</span>時間強制觸發：T=24h/6h/2h各強制一次分析。T&lt;1h停止分析，只監控。</div>
+      <div class="rule-box"><span class="rule-num">R#12</span>Put Wall分叉動態：跨期Put Wall近Spot=分叉效應，非簡單支撐。</div>
+      <div class="rule-box"><span class="rule-num">R#13</span>ATM vs 全局PCR分離：ATM PCR和全局PCR可顯著分歧，必須獨立解讀。</div>
+      <div class="rule-box rule-new"><span class="rule-num" style="color:var(--green);">R#14 ★新</span>週期切換重置規則：主到期日結算後，所有情境概率重置，以新Spot為基準重建貝葉斯先驗。舊週期信號（SS、情境B概率）自動失效。</div>
+      <div class="rule-box rule-new"><span class="rule-num" style="color:var(--green);">R#15 ★新</span>矛盾信號行為減半：FR轉正 + L/S同步下降（應上升卻下降）= 矛盾信號。行為信號（BehaviorSignal）成分權重×0.5計算。需等待信號方向一致才恢復全權重。</div>
+      <div class="rule-box rule-new"><span class="rule-num" style="color:var(--green);">R#16 ★新</span>跨期Put Wall共振Pin：≥3個到期日在同一行權價設置最大Put OI = 強力磁吸（GEX Pin）。此行權價成為UFT的TimeDecay成分錨點。共振強度 = 參與期數 × 各期OI加權。</div>
+
+      <div class="card" style="margin-top:10px;border-color:var(--purple);">
+        <div class="card-title" style="color:var(--purple);">🔢 UFT v2.0 方程</div>
+        <div style="font-family:monospace;font-size:11px;line-height:2;padding:8px;">
+          <div>P(X) = <span style="color:var(--accent);">0.40</span>×GBM</div>
+          <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ <span style="color:var(--green);">0.10</span>×GEX</div>
+          <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ <span style="color:var(--yellow);">0.28</span>×BehaviorSignal <span style="color:var(--red);font-size:9px;">[R#15時×0.5]</span></div>
+          <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ <span style="color:var(--purple);">0.12</span>×Bayesian</div>
+          <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ <span style="color:var(--cyan);">0.10</span>×TimeDecay</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- TAB: HISTORY -->
+<!-- ============================================================ -->
+<div id="tab-history" class="tab-content">
+  <div class="card" style="margin-bottom:12px;">
+    <div class="card-title">🏆 全序列驗證記錄</div>
+    <div class="grid-3">
+      <div style="padding:10px;background:rgba(16,185,129,0.08);border-radius:6px;text-align:center;">
+        <div class="bull" style="font-size:20px;font-weight:bold;">0.02σ</div>
+        <div style="font-size:10px;color:var(--muted);">27MAR26結算誤差</div>
+        <div style="font-size:10px;">預測$68,636 / 實際$68,625</div>
+      </div>
+      <div style="padding:10px;background:rgba(16,185,129,0.08);border-radius:6px;text-align:center;">
+        <div class="bull" style="font-size:20px;font-weight:bold;">0.41σ</div>
+        <div style="font-size:10px;color:var(--muted);">26MAR26結算誤差</div>
+        <div style="font-size:10px;">預測$70,860 / 實際$70,020</div>
+      </div>
+      <div style="padding:10px;background:rgba(16,185,129,0.08);border-radius:6px;text-align:center;">
+        <div class="bull" style="font-size:20px;font-weight:bold;">$3</div>
+        <div style="font-size:10px;color:var(--muted);">Fib $68,112 精準度</div>
+        <div style="font-size:10px;">預測$68,112 / 實際低點$68,115.8</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🗂 快照序列（S12～S22）</div>
+    <div>
+      <div class="timeline-item">
+        <div class="timeline-dot" style="background:var(--red);"></div>
+        <div class="timeline-content">
+          <div class="timeline-date">S22 | 2026-06-26 16:38 | 【當前】</div>
+          <div class="timeline-text bear">Spot $60,226 | FR +0.00444% | L/S 2.044 | OI 10.66萬 | 26JUN26結算日 | v2.0</div>
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-dot" style="background:var(--accent);"></div>
+        <div class="timeline-content">
+          <div class="timeline-date">結算 | 3/27 16:00 UTC</div>
+          <div class="timeline-text bull">26JUN26 DERIBIT結算：$68,625.39 | S20誤差$10.6（0.02σ）✓✓</div>
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-dot" style="background:var(--muted);"></div>
+        <div class="timeline-content">
+          <div class="timeline-date">S21 | 3/27 16:20 | Spot $68,350</div>
+          <div class="timeline-text">FR -0.669%（序列最深）| L/S 2.2870 | OI 8.91萬 | POS Regime | v1.8</div>
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-dot" style="background:var(--muted);"></div>
+        <div class="timeline-content">
+          <div class="timeline-date">S20 | 3/27 13:32 | Spot $68,546</div>
+          <div class="timeline-text">FR -0.528% | L/S 2.268 | RSI機械篩選Rule建立 | v1.7b</div>
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-dot" style="background:var(--muted);"></div>
+        <div class="timeline-content">
+          <div class="timeline-date">S19 | 3/27 13:10 | Spot $68,671</div>
+          <div class="timeline-text">FR -0.469% | L/S 2.261 | 4h RSI雙超賣 | v1.7</div>
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-dot" style="background:var(--muted);"></div>
+        <div class="timeline-content">
+          <div class="timeline-date">S18 | 3/27 11:00 | Spot $68,867</div>
+          <div class="timeline-text">FR +0.001% | L/S 2.239 | Fib $68,112 差$3 ✓ | v1.6</div>
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-dot" style="background:var(--muted);"></div>
+        <div class="timeline-content">
+          <div class="timeline-date">S17 | 3/26 21:38 | Spot $69,356</div>
+          <div class="timeline-text">FR -0.538% | L/S 2.033 | 9輪全面反駁 | v1.5</div>
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-dot" style="background:var(--muted);"></div>
+        <div class="timeline-content">
+          <div class="timeline-date">S16 | 3/26 20:10 | Spot $69,355</div>
+          <div class="timeline-text">FR -0.396% | L/S 1.923 | SS結構建立 | v1.3</div>
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-dot" style="background:var(--muted);"></div>
+        <div class="timeline-content">
+          <div class="timeline-date">S12-S15 | 3/26 | Spot $69,800~$71,443</div>
+          <div class="timeline-text">FR +0.025%~+0.535% | 26MAR26結算$70,020 ✓ | v1.0起</div>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:8px;font-size:9px;color:var(--muted);">
+      全序列：59輪碰撞 | UFT v1.0 → v2.0（10個版本）| 3次精準驗證記錄
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- TAB: GLOSSARY -->
+<!-- ============================================================ -->
+<div id="tab-glossary" class="tab-content">
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">📖 核心術語表（繁體中文）</div>
+      <div class="glossary-item"><div class="glossary-term">GEX（Gamma Exposure）</div><div class="glossary-def">期權造市商的Gamma敞口。正GEX：造市商穩定價格；負GEX：造市商放大波動。</div></div>
+      <div class="glossary-item"><div class="glossary-term">GF（Gamma Flip）</div><div class="glossary-def">GEX從正轉負的行權價水位，是Regime的分界線。</div></div>
+      <div class="glossary-item"><div class="glossary-term">PCR（Put/Call Ratio）</div><div class="glossary-def">Put成交量或OI除以Call。>1=防禦/看跌；<1=進攻/看漲。需ATM/全局分別計算。</div></div>
+      <div class="glossary-item"><div class="glossary-term">POS Regime</div><div class="glossary-def">Spot高於Gamma Flip，造市商作為市場穩定器，自動抑制波動。</div></div>
+      <div class="glossary-item"><div class="glossary-term">NEG Regime</div><div class="glossary-def">Spot低於Gamma Flip，造市商成為市場放大器，加劇波動。</div></div>
+      <div class="glossary-item"><div class="glossary-term">FR（資金費率）</div><div class="glossary-def">永續合約多空雙方互付的費率。正值=多頭付空頭；負值=空頭付多頭。穿越0%是重大信號。</div></div>
+      <div class="glossary-item"><div class="glossary-term">L/S比率</div><div class="glossary-def">大戶帳戶多頭數/空頭數比率。>1=多頭帳戶更多。整數觸發（2.0、2.5等）有特殊信號意義。</div></div>
+      <div class="glossary-item"><div class="glossary-term">OI（持倉量）</div><div class="glossary-def">市場上未平倉合約總量。OI增加+FR正=多頭主導；OI增加+FR負=空頭主導。</div></div>
+      <div class="glossary-item"><div class="glossary-term">Put Wall</div><div class="glossary-def">大量Put OI集中的行權價。在OTM=弱；ATM=最不穩定；ITM=支撐。</div></div>
+      <div class="glossary-item"><div class="glossary-term">Call Wall</div><div class="glossary-def">大量Call OI集中的行權價。對上方形成阻力，限制上漲。</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">📖 方法論術語表</div>
+      <div class="glossary-item"><div class="glossary-term">UFT（統一場論）</div><div class="glossary-def">Unified Field Theory，整合GBM/GEX/行為/貝葉斯/時間衰減五成分的結算概率模型。</div></div>
+      <div class="glossary-item"><div class="glossary-term">GBM成分</div><div class="glossary-def">幾何布朗運動基礎概率，代表EMH下的無偏估計（當前Spot）。占UFT 40%權重。</div></div>
+      <div class="glossary-item"><div class="glossary-term">BehaviorSignal</div><div class="glossary-def">行為信號，整合FR/L/S/OI的方向信號。Rule#15矛盾時權重×0.5。占UFT 28%。</div></div>
+      <div class="glossary-item"><div class="glossary-term">對抗性碰撞</div><div class="glossary-def">H_BULL和H_BEAR輪流攻擊對方論點，Oracle裁決。首次重複論點即終止。</div></div>
+      <div class="glossary-item"><div class="glossary-term">硬性觸發</div><div class="glossary-def">任一滿足即立即更新分析：FR穿越關鍵閾值、Spot移動>0.5σ、L/S整數、OI跳動>300張。</div></div>
+      <div class="glossary-item"><div class="glossary-term">MACD信號壽命</div><div class="glossary-def">Rule#2：15min需≥6.5h，4h需≥104h，1D需≥26天。不足則視為噪音。</div></div>
+      <div class="glossary-item"><div class="glossary-term">0.5x信號強度</div><div class="glossary-def">Rule#2 Supplement：MACD金叉在負DIF域時，信號只有一半效力。</div></div>
+      <div class="glossary-item"><div class="glossary-term">跨期共振Pin</div><div class="glossary-def">Rule#16：≥3個到期日在同一行權價最大Put OI = 強力磁吸中心，影響TimeDecay成分。</div></div>
+      <div class="glossary-item"><div class="glossary-term">週期切換重置</div><div class="glossary-def">Rule#14：主到期日結算後，所有情境概率從零重置，以新Spot為基準重建模型。</div></div>
+      <div class="glossary-item"><div class="glossary-term">矛盾信號（Rule#15）</div><div class="glossary-def">FR轉正但L/S同步下降時，行為信號方向矛盾，BehaviorSignal權重減半計算。</div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+function showTab(id) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+  event.target.classList.add('active');
+}
+</script>
+
+</body>
+</html>
