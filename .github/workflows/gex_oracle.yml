@@ -1,0 +1,72 @@
+name: GEX Oracle Auto (每6h)
+
+on:
+  schedule:
+    # 每6h執行：00:00, 06:00, 12:00, 18:00 UTC（即UTC+8的08/14/20/02）
+    - cron: '0 0,6,12,18 * * *'
+  workflow_dispatch:
+    inputs:
+      force_run:
+        description: '強制執行（測試用）'
+        required: false
+        default: 'false'
+
+concurrency:
+  group: gex-oracle
+  cancel-in-progress: false
+
+jobs:
+  oracle-update:
+    name: GEX Oracle 自動快照
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_PAT }}
+
+      - name: Restore Oracle database
+        uses: actions/cache@v4
+        with:
+          path: data/gex_oracle.db
+          key: oracle-db-${{ github.run_number }}
+          restore-keys: |
+            oracle-db-
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install requests anthropic
+
+      - name: Run GEX Oracle
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python gex_oracle_auto.py
+
+      - name: Save Oracle database
+        uses: actions/cache/save@v4
+        with:
+          path: data/gex_oracle.db
+          key: oracle-db-${{ github.run_number }}
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GH_PAT }}
+          publish_dir: ./docs
+          publish_branch: gh-pages
+
+      - name: Commit data snapshot
+        run: |
+          git config user.name "GEX Oracle Bot"
+          git config user.email "oracle@gex.auto"
+          git add data/ || true
+          git diff --staged --quiet || git commit -m "auto: S$(date +%Y%m%d-%H%M) snapshot"
+          git push || true
